@@ -341,8 +341,8 @@ export default function AuthForm() {
 
                 {/* Alerts Container */}
                 <Box sx={{ width: '100%', mb: 2 }}>
-                     {success && <Alert severity="success" sx={{ width: '100%' }} onClose={() => setSuccess("")}>{success}</Alert>}
-                     {error && <Alert severity="error" sx={{ width: '100%' }} onClose={() => setError("")}>{error}</Alert>}
+                     {success && <Alert severity="success" sx={{ maxWidth: 400 }} onClose={() => setSuccess("")}>{success}</Alert>}
+                     {error && <Alert severity="error" sx={{ maxWidth: 400 }} onClose={() => setError("")}>{error}</Alert>}
                 </Box>
 
 
