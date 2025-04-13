@@ -20,8 +20,7 @@ import {
     IconButton,
     Paper,
     Skeleton,
-    Card, // Keep Card if used for Inventory items
-    CardContent // Keep if used
+    useMediaQuery
 } from "@mui/material";
 
 // --- Icon Imports ---
@@ -31,6 +30,7 @@ import SortIcon from '@mui/icons-material/Sort';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import SmartphoneIcon from '@mui/icons-material/Smartphone';
 
 // --- Firebase Imports ---
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -144,6 +144,31 @@ function formatCurrency(amount) {
    const formatter = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
    return formatter.format(amount);
 }
+
+const DesktopWarning = () => (
+    <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        textAlign: 'center',
+        p: 3,
+        bgcolor: 'background.paper'
+    }}>
+        <SmartphoneIcon sx={{ fontSize: 60, mb: 2, color: 'text.secondary' }} />
+        <Typography variant="h5" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Mobile View Recommended
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+            This application is designed for mobile use.
+            <br />
+            Please switch to a phone or use browser developer tools
+            <br />
+            to emulate a mobile screen for the intended experience.
+        </Typography>
+    </Box>
+);
 
 // ========================================================================
 // --- AddItemContent Sub-Component ---
@@ -753,6 +778,7 @@ export default function Dashboard() {
     const headerRef = useRef(null);
     const activeTextColor = theme.palette.getContrastText(activeBgColor);
     const inactiveTextColor = theme.palette.text.secondary;
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // --- Auth Logic ---
      useEffect(() => { /* ... Auth listener ... */
@@ -775,6 +801,10 @@ export default function Dashboard() {
     // --- Render Logic ---
     if (loading) { return (<Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><CircularProgress size={60} /></Box>); }
     if (!user) { return null; }
+
+    if (!isMobile) {
+        return <DesktopWarning />; // Use the component defined above
+    }
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#F8F8F8' }}>
