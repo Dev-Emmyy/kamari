@@ -1,367 +1,324 @@
 // ./components/Header.jsx (adjust path as needed)
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
-  AppBar,
-  Toolbar,
-  IconButton,
-  InputBase,
-  Box,
-  Typography,
-  Avatar,
-  Menu,
-  MenuItem,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+    AppBar,
+    Toolbar,
+    IconButton,
+    Box,
+    Typography,
+    Avatar,
+    Menu,
+    MenuItem,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
 } from "@mui/material";
-import Image from "next/image";
-import NotificationsIcon from "@mui/icons-material/Notifications";
-import MenuIcon from "@mui/icons-material/Menu";
+import { IoIosNotificationsOutline, IoIosSwitch,IoMdSwitch } from "react-icons/io";
 import PersonIcon from "@mui/icons-material/Person";
-import LogoutIcon from "@mui/icons-material/Logout"; 
-import debounce from "lodash/debounce";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
-// Added 'user' and 'onSignOut' to props
-const Header = React.forwardRef(({ onMenuClick, user, onSignOut }, ref) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [profileAnchorEl, setProfileAnchorEl] = useState(null);
-  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const searchRef = useRef(null);
-  const router = useRouter();
+// Removed 'onMenuClick' from props
+// Added 'onSignOut' to props if it wasn't explicitly passed before but needed for logout
+const Header = React.forwardRef(({ user, onSignOut }, ref) => {
+    // Removed searchQuery state and searchRef
+    const [profileAnchorEl, setProfileAnchorEl] = useState(null);
+    const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+    const router = useRouter();
 
-  // Debounced search handler (unchanged)
-  const handleSearchChange = debounce((value) => {
-    setSearchQuery(value);
-  }, 300);
+    // Removed handleSearchChange function
 
-  // Updated function to use the Firebase user prop
-  const getUserInitials = () => {
-    const name = user?.displayName;
-    const email = user?.email;
-    if (name) {
-        return name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase();
-    } else if (email) {
-        // Use first two letters of email before @ if no name
-        return email.split("@")[0].slice(0, 2).toUpperCase();
-    }
-    return "U"; // Fallback initial
-  };
-
-  // Profile menu handlers (unchanged)
-  const handleProfileClick = (event) => {
-    setProfileAnchorEl(event.currentTarget);
-  };
-  const handleProfileClose = () => {
-    setProfileAnchorEl(null);
-  };
-
-  // Logout dialog handlers (unchanged opening/cancel)
-  const handleLogoutClick = () => {
-    setLogoutDialogOpen(true);
-    handleProfileClose();
-  };
-  const handleLogoutCancel = () => {
-    setLogoutDialogOpen(false);
-  };
-
-  // Updated logout confirmation to call the passed onSignOut function
-  const handleLogoutConfirm = async () => {
-      setLogoutDialogOpen(false);
-      router.push("/login"); // Manually redirect to /login
+    const getUserInitials = () => {
+        const name = user?.displayName;
+        const email = user?.email;
+        if (name) {
+            return name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+        } else if (email) {
+            return email.split("@")[0].slice(0, 2).toUpperCase();
+        }
+        return "U"; // Fallback initial
     };
 
-  // Profile settings navigation (unchanged)
-  const handleProfileSettings = () => {
-    router.push(`/${uid}/settings`); // Adjust path if needed
-    handleProfileClose();
-  };
+    // Profile menu handlers
+    const handleProfileClick = (event) => {
+        setProfileAnchorEl(event.currentTarget);
+    };
+    const handleProfileClose = () => {
+        setProfileAnchorEl(null);
+    };
 
-  return (
-    <AppBar
-      position="static"
-      ref={ref}
-      tabIndex={0} // Keep for focus management
-      sx={{
-        backgroundColor: "#fff",
-        boxShadow: "0px 4px 10px 0px #C2C2C240",
-        width: "100%",
-      }}
-    >
-      <Toolbar 
-        sx={{
-            padding: { xs: "8px 16px", sm: "16px" },
-            minHeight: { xs: "56px", sm: "64px" },
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "8px", }}>
-        {/* Search Section with Hamburger */}
-        <Box 
-            sx={{  
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                maxWidth: { xs: "100%", sm: "400px" },
-                }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={onMenuClick}
-            sx={{ display: { sm: "none" }, color: "#0E4F90", padding: "8px" }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Box 
-            ref={searchRef}
+    // Logout dialog handlers
+    const handleLogoutClick = () => {
+        setLogoutDialogOpen(true);
+        handleProfileClose();
+    };
+    const handleLogoutCancel = () => {
+        setLogoutDialogOpen(false);
+    };
+
+    // Updated logout confirmation
+    const handleLogoutConfirm = async () => {
+        setLogoutDialogOpen(false);
+        if (onSignOut) {
+           try {
+               await onSignOut(); // Call the sign-out function passed from parent
+           } catch (error) {
+                console.error("Sign out error:", error);
+                // Optionally show an error message to the user
+           }
+        } else {
+            console.warn("onSignOut function not provided to Header component.");
+        }
+        router.push("/login"); // Redirect after sign-out attempt
+    };
+
+    // Profile settings navigation
+    const handleProfileSettings = () => {
+        // Ensure UID is available if needed, otherwise adjust path
+        if (user?.uid) {
+           router.push(`/${user.uid}/settings`);
+        } else {
+           console.error("User UID not available for settings navigation");
+           // Maybe redirect to a generic settings page or handle error
+        }
+        handleProfileClose();
+    };
+
+    return (
+        <AppBar
+            position="sticky" // Use sticky to keep it at the top
+            ref={ref}
+            tabIndex={-1} // Can remove tabIndex if focus management isn't needed here
             sx={{
-                display: "flex",
-                alignItems: "center",
+                backgroundColor: "#fff",
+                boxShadow: "0px 4px 10px 0px rgba(194, 194, 194, 0.25)", // Adjusted shadow alpha
                 width: "100%",
-                height: "45px",
-                padding: "0 16px",
-                gap: "12px",
-                borderRadius: "10px",
-                border: "1px solid #C2C2C2",
-                position: "relative",
+                mb: "20px",
+                top: 0, // Ensure it sticks to the top
+                zIndex: (theme) => theme.zIndex.appBar, // Ensure proper layering
             }}
-            >
-            <Image src="/icons/search.png" alt="search" width={20} height={20} />
-            <InputBase
-              placeholder="Search by shops, id, name..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              sx={{
-                flex: 1,
-                fontFamily: "Product Sans",
-                fontSize: { xs: "14px", sm: "16px" },
-                fontWeight: 400,
-                lineHeight: "22.4px",
-                letterSpacing: "0.2px",
-                color: "#828282",
-                "& input": {
-                "&::placeholder": {
-                    opacity: 1,
-                    fontSize: { xs: "14px", sm: "16px" },
-                },
-                },
-            }}
-            />
-          </Box>
-        </Box>
-
-        {/* User Info & Icons */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <IconButton size="medium">
-            <NotificationsIcon
-                sx={{ color: "#010309", fontSize: { xs: "20px", sm: "24px" } }}
-            />
-          </IconButton>
-
-          {/* Use the passed 'user' prop to conditionally render */}
-          {user ? (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "4px 12px",
-                borderRadius: "20px",
-                backgroundColor: "#F0F4F7",
-                "&:hover": { backgroundColor: "#E0E8ED" },
-                cursor: "pointer",
-            }}
-            onClick={handleProfileClick} // Open dropdown on click
-            >
-              <Avatar
-                // Use photoURL from Firebase user object
-                src={user.photoURL || undefined} // Use undefined if null/empty
-                sx={{ width: 32, height: 32, bgcolor: user.photoURL ? "transparent" : "#0E4F90" }} // Use theme color?
-              >
-                {/* Display initials if no photoURL */}
-                {!user.photoURL && getUserInitials()}
-              </Avatar>
-              <Typography
-                variant="body2"
+        >
+            <Toolbar
                 sx={{
-                    display: { xs: "none", sm: "block" },
-                    color: "#0E4F90",
-                    fontWeight: 500,
-                    fontFamily: "Product Sans",
+                    padding: { xs: "0 12px", sm: "0 16px" }, // Adjusted padding for mobile
+                    minHeight: { xs: "56px", sm: "56px" }, // Consistent mobile height
+                    display: "flex",
+                    alignItems: "center", // Vertically align items
+                    justifyContent: "space-between", // Pushes left and right groups apart
+                    gap: "8px",
                 }}
+            >
+                {/* Left Side: Icon + Brand Name */}
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <IoMdSwitch
+                        style={{
+                            width: 28, // Adjust size as needed
+                            height: 28,
+                            color: "rgba(51, 54, 63, 1)", // Example color, adjust as needed
+                        }}
+                    />
+                    <Image src="/logo.png" alt="logo" width={125} height={19} />
+                </Box>
+
+                {/* Right Side: Icons & User Avatar */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 } }}> {/* Reduced gap slightly on xs */}
+                    <IconButton
+                       size="medium"
+                       aria-label="notifications"
+                       sx={{ color: 'text.primary' }} // Use theme color
+                    >
+                        <IoIosNotificationsOutline
+                            style={{
+                                width: 24,
+                                height: 24,
+                                // color: "rgba(51, 54, 63, 1)", // Color from sx now
+                            }}
+                        />
+                    </IconButton>
+
+                    {/* User Avatar and Menu */}
+                    {user ? (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                // Removed padding/border for cleaner look if menu is indicator
+                                cursor: "pointer",
+                            }}
+                            onClick={handleProfileClick} // Open dropdown on click
+                            aria-controls={profileAnchorEl ? 'profile-menu' : undefined}
+                            aria-haspopup="true"
+                            aria-expanded={profileAnchorEl ? 'true' : undefined}
+                        >
+                            <Avatar
+                                src={user.photoURL || undefined}
+                                alt={user.displayName || 'User Avatar'}
+                                sx={{
+                                    width: { xs: 32, sm: 36 }, // Slightly smaller on xs
+                                    height: { xs: 32, sm: 36 },
+                                    bgcolor: user.photoURL ? "transparent" : "rgba(51, 54, 63, 1)", // Example fallback color
+                                    fontSize: "14px", // Adjusted font size for initials
+                                    border: '1px solid lightgrey' // Optional subtle border
+                                }}
+                            >
+                                {!user.photoURL && getUserInitials()}
+                            </Avatar>
+                        </Box>
+                    ) : (
+                        // Optionally show a Login button if user is not logged in
+                        null
+                    )}
+                </Box>
+            </Toolbar>
+
+            {/* Profile Dropdown Menu */}
+            <Menu
+                id="profile-menu" // Added ID for accessibility
+                anchorEl={profileAnchorEl}
+                open={Boolean(profileAnchorEl)}
+                onClose={handleProfileClose}
+                disableScrollLock={true}
+                PaperProps={{
+                    sx: {
+                        borderRadius: "8px",
+                        boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.15)", // Slightly softer shadow
+                        minWidth: "160px", // Adjusted width
+                        overflow: "visible",
+                        mt: 1, // Margin top from anchor
+                    },
+                }}
+                MenuListProps={{
+                    sx: { padding: "4px 0" }, // Add some vertical padding
+                     'aria-labelledby': 'avatar-button', // Assume avatar box acts as button
+                }}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+                <MenuItem
+                    onClick={handleProfileSettings}
+                    sx={{
+                        fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif", // Standard font
+                        fontSize: "14px",
+                        color: "text.primary",
+                        padding: "8px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px", // Consistent gap
+                        "&:hover": { backgroundColor: "action.hover" }, // Use theme hover color
+                    }}
                 >
-                {/* Use displayName or fallback to email */}
-                {user.displayName || user.email?.split("@")[0] || "User"}
-              </Typography>
-            </Box>
-          ) : (
-             null
-          )}
-        </Box>
+                    <PersonIcon sx={{ fontSize: "20px", color: "text.secondary" }} />
+                    Profile
+                </MenuItem>
+                <MenuItem
+                    onClick={handleLogoutClick}
+                    sx={{
+                        fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                        fontSize: "14px",
+                        color: "error.main", // Use theme error color
+                        padding: "8px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        "&:hover": { backgroundColor: "rgba(211, 47, 47, 0.08)" }, // Error hover bg
+                    }}
+                >
+                    <LogoutIcon sx={{ fontSize: "20px", color: "error.main" }} />
+                    Logout
+                </MenuItem>
+            </Menu>
 
-        {/* Profile Dropdown Menu (references updated user info logic implicitly) */}
-        <Menu
-            anchorEl={profileAnchorEl}
-            open={Boolean(profileAnchorEl)}
-            onClose={handleProfileClose}
-            disableScrollLock={true} 
-            PaperProps={{
-                sx: {
-                    borderRadius: "8px",
-                    boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.1)",
-                    width: "150px",
-                    overflow: "visible",
-                },
-            }}
-            MenuListProps={{
-                sx: {
-                    padding: "0",
-                },
-            }}
-            anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-            }}
-            transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-            }}
-        >
-            <MenuItem
-            onClick={handleProfileSettings}
-            sx={{
-                fontFamily: "Product Sans",
-                fontSize: "14px",
-                color: "#333",
-                padding: "6px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                "&:hover": { backgroundColor: "#F0F4F7" },
-            }}
-            >
-            <PersonIcon sx={{ fontSize: "18px", color: "#333" }} />
-            Profile
-            </MenuItem>
-            <MenuItem
-            onClick={handleLogoutClick}
-            sx={{
-                fontFamily: "Product Sans",
-                fontSize: "14px",
-                color: "#D32F2F",
-                padding: "6px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                "&:hover": { backgroundColor: "#FFE5E5" },
-            }}
-            >
-            <LogoutIcon sx={{ fontSize: "18px", color: "#D32F2F" }} />
-            Logout
-            </MenuItem>
-        </Menu>
-
-        {/* Logout Confirmation Dialog (references updated handleLogoutConfirm) */}
-        <Dialog
-            open={logoutDialogOpen}
-            onClose={handleLogoutCancel}
-            disableScrollLock={true} // Prevents scrollbar and layout shift
-            PaperProps={{
-            sx: {
-                borderRadius: "10px",
-                padding: "20px",
-                width: "400px",
-                maxWidth: "90vw",
-                boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.15)", // Consistent shadow
-                position: "fixed", // Ensures it stays centered as an overlay
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)", // Centers the dialog
-            },
-            }}
-            sx={{
-            backdropFilter: "blur(2px)", // Optional: Adds a subtle blur to the background
-            backgroundColor: "rgba(0, 0, 0, 0.5)", // Darkens the background slightly
-            }}
-        >
-            <DialogTitle
-            sx={{
-                fontFamily: "Product Sans",
-                fontSize: "20px",
-                fontWeight: 700,
-                color: "#333",
-                textAlign: "center",
-                padding: "0 0 10px 0", // Reduce extra padding
-            }}
-            >
-            Confirm Logout
-            </DialogTitle>
-            <DialogContent
-            sx={{
-                padding: "10px 0", // Tighten spacing
-            }}
-            >
-            <Typography
-                sx={{
-                fontFamily: "Product Sans",
-                fontSize: "16px",
-                color: "#5A5D66",
-                textAlign: "center",
+            {/* Logout Confirmation Dialog */}
+            <Dialog
+                open={logoutDialogOpen}
+                onClose={handleLogoutCancel}
+                disableScrollLock={true}
+                PaperProps={{
+                    sx: {
+                        borderRadius: "10px",
+                        p: { xs: 2, sm: 3 }, // Responsive padding
+                        width: "auto", // Auto width based on content
+                        minWidth: '280px', // Ensure min width on small screens
+                        maxWidth: "calc(100vw - 32px)", // Ensure it doesn't touch edges
+                        boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.15)",
+                        // Removed fixed positioning, Dialog handles centering
+                    },
                 }}
+                // sx={{ backdropFilter: "blur(1px)" }} // Keep if desired
             >
-                Are you sure you want to log out?
-            </Typography>
-            </DialogContent>
-            <DialogActions
-            sx={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "20px",
-                padding: "10px 0",
-            }}
-            >
-            <Button
-                onClick={handleLogoutCancel}
-                sx={{
-                fontFamily: "Product Sans",
-                fontSize: "14px",
-                color: "#0E4F90",
-                textTransform: "none",
-                padding: "8px 20px",
-                borderRadius: "8px",
-                "&:hover": { backgroundColor: "#E0E8ED" },
-                }}
-            >
-                Cancel
-            </Button>
-            <Button
-                onClick={handleLogoutConfirm}
-                sx={{
-                fontFamily: "Product Sans",
-                fontSize: "14px",
-                color: "#fff",
-                backgroundColor: "#D32F2F",
-                textTransform: "none",
-                padding: "8px 20px",
-                borderRadius: "8px",
-                "&:hover": { backgroundColor: "#B71C1C" },
-                }}
-            >
-                Logout
-            </Button>
-            </DialogActions>
-        </Dialog>
-        </Toolbar>
-    </AppBar>
+                <DialogTitle
+                    sx={{
+                        fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                        fontSize: { xs: "18px", sm: "20px" },
+                        fontWeight: 600, // Slightly less bold
+                        color: "text.primary",
+                        textAlign: "center",
+                        p: "0 0 10px 0",
+                    }}
+                >
+                    Confirm Logout
+                </DialogTitle>
+                <DialogContent sx={{ p: "10px 0" }}>
+                    <Typography
+                        sx={{
+                            fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                            fontSize: "16px",
+                            color: "text.secondary",
+                            textAlign: "center",
+                        }}
+                    >
+                        Are you sure you want to log out?
+                    </Typography>
+                </DialogContent>
+                <DialogActions
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center", // Keep centered buttons
+                        gap: "16px", // Consistent gap
+                        p: "16px 0 0 0", // Padding top only
+                    }}
+                >
+                    <Button
+                        onClick={handleLogoutCancel}
+                        variant="outlined" // Outlined style for cancel
+                        sx={{
+                            fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                            fontSize: "14px",
+                            textTransform: "none",
+                            padding: "6px 16px", // Adjusted padding
+                            borderRadius: "8px",
+                            // Color and hover handled by variant="outlined"
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleLogoutConfirm}
+                        variant="contained" // Contained style for confirm
+                        color="error" // Use error color
+                        sx={{
+                            fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                            fontSize: "14px",
+                            textTransform: "none",
+                            padding: "6px 16px",
+                            borderRadius: "8px",
+                            // BgColor and hover handled by variant="contained" color="error"
+                        }}
+                    >
+                        Logout
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </AppBar>
     );
 });
 

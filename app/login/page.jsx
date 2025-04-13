@@ -3,445 +3,461 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  TextField,
-  Button,
-  // FormControlLabel, // Removed as Terms checkbox is gone
-  Typography,
-  Divider,
-  Box,
-  // Checkbox, // Removed as Terms checkbox is gone
-  IconButton,
-  InputAdornment,
-  CircularProgress,
-  Alert,
+    TextField,
+    Button,
+    Typography,
+    Divider,
+    Box,
+    IconButton,
+    InputAdornment,
+    CircularProgress,
+    Alert,
+    useTheme, // Import useTheme hook if needed for spacing units
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  // updateProfile // Import if you want to update auth profile name too
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signInWithPopup,
+    // updateProfile // Import if you want to update auth profile name too
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "../../lib/firebase"; // Ensure path is correct
 import Image from "next/image";
 
+// --- Style Definitions (No Fixed Widths Here) ---
+
+// Base styles for text fields (Name, Password)
+const textFieldStyles = {
+    mb: 2.5, // Use theme spacing or consistent spacing
+    "& .MuiOutlinedInput-root": {
+        borderRadius: "14px", // Consistent border radius
+        "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
+        "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
+        "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
+        "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" },
+    },
+    "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" },
+    "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
+};
+
+// Specific styles for the Email field (if different border needed)
+const emailTextFieldStyles = {
+    ...textFieldStyles, // Inherit base styles
+    "& .MuiOutlinedInput-root": {
+        ...textFieldStyles["& .MuiOutlinedInput-root"], // Inherit base input root styles
+        "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, // Override border
+        "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
+        "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
+    },
+};
+
+// Google Button styles
+const googleButtonStyles = {
+    mb: 2.5, // Consistent spacing
+    border: '1px solid rgba(193, 213, 246, 1)', // Correct border property
+    borderRadius: "15px",
+    color: "rgba(31, 31, 31, 1)",
+    bgcolor: "background.paper", // Use theme color
+    textTransform: "none",
+    fontFamily: "Manrope, sans-serif", // Add fallback font
+    fontWeight: 500,
+    fontSize: "14px",
+    lineHeight: "1", // Simpler line height
+    padding: "10px 12px",
+    height: "45px",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+        bgcolor: 'rgba(0, 0, 0, 0.03)' // Slight hover effect
+    }
+};
+
+// Main Action Button styles (Sign In/Sign Up)
+const mainButtonStyles = {
+    mt: 1, // Margin top after last input
+    mb: 3, // Consistent spacing
+    borderStyle: 'none',
+    bgcolor: "rgba(34, 34, 34, 1)", // Or use theme.palette.primary.main
+    padding: "10px 12px",
+    textTransform: "none",
+    borderRadius: "15px",
+    boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)",
+    fontFamily: "'Instrument Sans', sans-serif",
+    fontWeight: 400,
+    fontSize: "14px",
+    lineHeight: "normal",
+    color: "#FFFFFF", // Or theme.palette.primary.contrastText
+    height: "48px",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+        bgcolor: "rgba(50, 50, 50, 1)", // Darken slightly on hover
+    },
+    '&:disabled': {
+        bgcolor: 'rgba(0, 0, 0, 0.12)', // Disabled style
+        color: 'rgba(0, 0, 0, 0.26)',
+        boxShadow: 'none',
+    }
+};
+
+
 export default function AuthForm() {
-  // State Updates: Added name, removed confirmPassword and termsAccepted
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
-  const [isEmailProcessing, setIsEmailProcessing] = useState(false);
-  const [isNewUser, setIsNewUser] = useState(false); // Toggle between Sign In and Sign Up
-  const [showPassword, setShowPassword] = useState(false);
-  // Removed showConfirmPassword state
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
+    const [isEmailProcessing, setIsEmailProcessing] = useState(false);
+    const [isNewUser, setIsNewUser] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
-  const router = useRouter();
+    const router = useRouter();
+    // const theme = useTheme(); // Uncomment if using theme.spacing
 
-  const handleClickShowPassword = () => setShowPassword((prev) => !prev);
-  // Removed handleClickShowConfirmPassword handler
+    const handleClickShowPassword = () => setShowPassword((prev) => !prev);
 
-  const handleAuthError = (error) => {
-    console.error("Auth error:", error);
-    let message = "An unexpected error occurred. Please try again."; // Default message
+    const handleAuthError = (error) => {
+        console.error("Auth error:", error);
+        let message = "An unexpected error occurred. Please try again.";
 
-    // Specific error messages - Removed password mismatch error
-    if (error.code) {
-      switch (error.code) {
-        case "auth/user-not-found":
-          setIsNewUser(true); // Suggest signing up if user not found during sign in attempt
-          message = "No account found with this email. Please sign up.";
-          break;
-        case "auth/wrong-password":
-          message = "Incorrect password. Please try again.";
-          break;
-        case "auth/email-already-in-use":
-          setIsNewUser(false); // Suggest signing in if email exists during signup attempt
-          message = "Email already in use. Please sign in instead.";
-          break;
-        case "auth/weak-password":
-          message = "Password should be at least 6 characters.";
-          break;
-        case "auth/invalid-email":
-          message = "Please enter a valid email address.";
-          break;
-        case "auth/network-request-failed":
-          message = "Network error. Please check your internet connection.";
-          break;
-        case 'auth/popup-closed-by-user':
-             message = 'Google sign-in cancelled.';
-             break;
-        case 'auth/cancelled-popup-request':
-        case 'auth/popup-blocked':
-             message = 'Google sign-in popup was blocked or cancelled. Please allow popups for this site.';
-             break;
-        default:
-           message = error.message || "Authentication failed. Please try again.";
-      }
-    } else if (error.message) {
-         message = error.message;
-    }
-      setError(message); // Set the final error message
-  };
-
-  // Generic redirection function after successful auth
-  const redirectToDashboard = (uid) => {
-     if (!uid) { // Basic check
-        console.error("Redirect failed: UID is missing.");
-        setError("Authentication succeeded but redirect failed. Please try logging in.");
-        return;
-     }
-    console.log("Redirecting user:", uid); // Keep for debugging
-    const redirectPath = `/${uid}/dashboard`;
-    router.push(redirectPath);
-  };
-
-  // Handles Email/Password Sign Up or Sign In
-  const handleAuth = async () => {
-    setIsEmailProcessing(true);
-    setError("");
-    setSuccess("");
-
-    // --- Sign Up Logic ---
-    if (isNewUser) {
-      // Removed terms check
-      // Removed password mismatch check
-
-      // Add validation for name
-      if (!name.trim()) {
-          setError("Please enter your name.");
-          setIsEmailProcessing(false);
-          return;
-      }
-      // Basic email/password validation still useful
-       if (!email.trim() || !password.trim()) {
-           setError("Please enter both email and password.");
-           setIsEmailProcessing(false);
-           return;
-       }
-
-
-      try {
-        const { user } = await createUserWithEmailAndPassword(auth, email, password);
-
-        // Optional: Update Firebase Auth profile display name
-        // await updateProfile(user, { displayName: name });
-
-        // Create user document in Firestore with name
-        await setDoc(doc(db, "users", user.uid), {
-          name: name, // Save the name from state
-          email: user.email,
-          createdAt: new Date().toISOString(),
-          signupMethod: "email",
-        });
-        setSuccess("🎉 Account created successfully! Redirecting...");
-        setTimeout(() => redirectToDashboard(user.uid), 1000);
-
-      } catch (error) {
-        handleAuthError(error);
-      } finally {
-        setIsEmailProcessing(false);
-      }
-    }
-    // --- Sign In Logic --- (Formerly Login)
-    else {
-      try {
-        const { user } = await signInWithEmailAndPassword(auth, email, password);
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (!userDoc.exists()) {
-            console.warn("User authenticated (email) but no data found in Firestore for UID:", user.uid);
-             await setDoc(userDocRef, {
-                email: user.email,
-                // Potentially try to get name if available from auth user, though often null for email
-                // name: user.displayName || "User",
-                createdAt: new Date().toISOString(),
-                signupMethod: "email",
-             });
-             console.log("Created minimal Firestore doc for user:", user.uid);
+        if (error.code) {
+            switch (error.code) {
+                case "auth/user-not-found":
+                    setIsNewUser(true);
+                    message = "No account found with this email. Please sign up.";
+                    break;
+                case "auth/wrong-password":
+                    message = "Incorrect password. Please try again.";
+                    break;
+                case "auth/email-already-in-use":
+                    setIsNewUser(false);
+                    message = "Email already in use. Please sign in instead.";
+                    break;
+                case "auth/weak-password":
+                    message = "Password should be at least 6 characters.";
+                    break;
+                case "auth/invalid-email":
+                    message = "Please enter a valid email address.";
+                    break;
+                case "auth/network-request-failed":
+                    message = "Network error. Please check your internet connection.";
+                    break;
+                case 'auth/popup-closed-by-user':
+                    message = 'Google sign-in cancelled.';
+                    break;
+                case 'auth/cancelled-popup-request':
+                case 'auth/popup-blocked':
+                    message = 'Google sign-in popup was blocked or cancelled. Please allow popups for this site.';
+                    break;
+                default:
+                   message = error.message.includes('auth/') ? error.message.split('auth/')[1].split(')')[0].replace(/-/g, ' ') : "Authentication failed. Please try again."; // Try to make Firebase errors more readable
+                   message = message.charAt(0).toUpperCase() + message.slice(1) + '.'; // Capitalize
+            }
+        } else if (error.message) {
+             message = error.message;
         }
-
-        // Changed success message text
-        setSuccess("🔑 Sign in successful! Redirecting...");
-        setTimeout(() => redirectToDashboard(user.uid), 1500);
-
-      } catch (error) {
-        handleAuthError(error);
-      } finally {
-        setIsEmailProcessing(false);
-      }
-    }
-  };
-
-  // Handles Google Sign In / Sign Up
-  const handleGoogleAuth = async () => {
-    setIsGoogleProcessing(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const { user } = await signInWithPopup(auth, googleProvider);
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      let userName = user.displayName || "Google User"; // Get name from Google profile
-
-      if (!userDoc.exists()) {
-        // New user via Google
-        await setDoc(userDocRef, {
-          name: userName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-          signupMethod: "google",
-        });
-        setSuccess("🎉 Google signup successful! Redirecting...");
-      } else {
-        // Existing user via Google
-        const userData = userDoc.data();
-        userName = userData.name || userName;
-        console.log("Existing Google user signed in:", user.uid);
-        // Optional: Update name if it changed in Google profile? (Consider importing updateDoc)
-        // if (userData.name !== userName && user.displayName) {
-        //    await updateDoc(userDocRef, { name: user.displayName });
-        // }
-
-        // Changed success message text
-        setSuccess("🔑 Google sign in successful! Redirecting...");
-      }
-
-      setTimeout(() => redirectToDashboard(user.uid), 1500);
-
-    } catch (error) {
-        handleAuthError(error);
-    } finally {
-      setIsGoogleProcessing(false);
-    }
-  };
-
-
-  // --- STYLES ---
-  const textFieldStyles = {
-     mb: 3,
-     "& .MuiOutlinedInput-root": {
-       borderRadius: "13.89px",
-       "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
-       "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
-       "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
-       "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" },
-     },
-     "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" },
-     "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
-  };
-
-
-    const emailTextFieldStyles = { // Renamed for clarity
-    mb: 3,
-     "& .MuiOutlinedInput-root": {
-       borderRadius: "13.89px",
-       "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
-       "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
-       "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
-       "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" },
-     },
-     "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" },
-     "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
+        setError(message);
     };
 
-  const googleButtonStyles = {
-        mb: 3,
-        borderColor: "1px solid rgba(193, 213, 246, 1)",
-        borderRadius: "15px",
-        color: "rgba(31, 31, 31, 1)",
-        width: "390px",
-        bgcolor: "rgba(255, 255, 255, 1)",
-        textTransform: "none",
-        fontFamily: "Manrope", // Google often uses Roboto
-        fontWeight: 500,
-        fontSize: "14px",
-        lineHeight: "100%",
-        letterSpacing: "0%",
-        padding: "10px 12px",
-        height: "45px",
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-  };
+    const redirectToDashboard = (uid) => {
+        if (!uid) {
+            console.error("Redirect failed: UID is missing.");
+            setError("Authentication succeeded but redirect failed. Please try logging in.");
+            return;
+        }
+        console.log("Redirecting user:", uid);
+        const redirectPath = `/${uid}/dashboard`;
+        router.push(redirectPath);
+    };
 
-  const mainButtonStyles = {
-         mb: 7,
-         borderStyle: 'none',
-         bgcolor: "rgba(34, 34, 34, 1)",
-         padding: "10px 12px",
-         textTransform: "none",
-         borderRadius: "15px",
-         boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)",
-         fontFamily: "'Instrument Sans', sans-serif",
-         fontWeight: 400,
-         fontSize: "14px",
-         lineHeight: "normal",
-         letterSpacing: "0%",
-         color: "#FFFFFF",
-         width: "390px",
-         height: "48px",
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'center'
-  };
+    const handleAuth = async () => {
+        setIsEmailProcessing(true);
+        setError("");
+        setSuccess("");
 
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        fontFamily: "'Instrument Sans', sans-serif",
-        p: 2,
-      }}
-    >
-      {/* Logo and Title */}
-      <Box sx={{ display: "flex", flexDirection: "column" ,alignItems: "center", justifyContent: "center", gap: "15px", mb: 7 }}>
-        <Image src="/logo.png" alt="logo" width={106} height={16} />
-         <Box sx={{width: "74px"}}>
-             <Typography
-               sx={{ fontFamily: 'Instrument Sans', fontWeight: 400, fontSize: '10px', lineHeight: '100%', letterSpacing: '0%' ,  background: 'linear-gradient(90deg, rgba(223, 29, 29, 0.69) 7.21%, rgba(102, 102, 102, 0.38) 27.88%, rgba(226, 185, 21, 0.55) 53.85%, rgba(226, 185, 21, 0.4) 94.71%)',WebkitBackgroundClip: 'text',backgroundClip: 'text',color: 'transparent',}}>
-                 INVENTORY MANAGEMENT SYSTEM
-             </Typography>
-         </Box>
-      </Box>
+        if (isNewUser) {
+            // Sign Up
+            if (!name.trim()) {
+                setError("Please enter your name.");
+                setIsEmailProcessing(false);
+                return;
+            }
+             if (!email.trim() || !password.trim()) {
+                setError("Please enter both email and password.");
+                setIsEmailProcessing(false);
+                return;
+            }
+            // Add password validation (e.g., length) if desired before calling Firebase
+             if (password.length < 6) {
+                 setError("Password should be at least 6 characters.");
+                 setIsEmailProcessing(false);
+                 return;
+             }
 
-      {/* Form Container */}
-      <Box sx={{ width: "100%", maxWidth: 400 }}>
-        {/* Alerts */}
-        {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>{success}</Alert>}
-        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
+            try {
+                const { user } = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "users", user.uid), {
+                    name: name,
+                    email: user.email,
+                    createdAt: new Date().toISOString(),
+                    signupMethod: "email",
+                });
+                setSuccess("🎉 Account created! Redirecting...");
+                setTimeout(() => redirectToDashboard(user.uid), 1000);
+            } catch (error) {
+                handleAuthError(error);
+            } finally {
+                setIsEmailProcessing(false);
+            }
+        } else {
+            // Sign In
+             if (!email.trim() || !password.trim()) {
+                setError("Please enter both email and password.");
+                setIsEmailProcessing(false);
+                return;
+             }
 
-        {/* Google Button */}
-        <Button
-            variant="outlined"
-            onClick={handleGoogleAuth}
-            fullWidth
-            disabled={isGoogleProcessing || isEmailProcessing} // Disable if any process is running
-            startIcon={!isGoogleProcessing ? ( // Show icon only when not processing this button
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18" >
-                    {/* SVG paths... */}
-                      <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-                      <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-                      <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-                      <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-                </svg>
-            ) : null}
-            sx={googleButtonStyles}
+            try {
+                const { user } = await signInWithEmailAndPassword(auth, email, password);
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (!userDoc.exists()) {
+                    console.warn("User authenticated (email) but no Firestore doc found for UID:", user.uid);
+                     await setDoc(userDocRef, {
+                        email: user.email,
+                        name: "User", // Default name if missing
+                        createdAt: new Date().toISOString(),
+                        signupMethod: "email",
+                    });
+                    console.log("Created minimal Firestore doc for user:", user.uid);
+                }
+                setSuccess("🔑 Sign in successful! Redirecting...");
+                setTimeout(() => redirectToDashboard(user.uid), 1500);
+            } catch (error) {
+                handleAuthError(error);
+            } finally {
+                setIsEmailProcessing(false);
+            }
+        }
+    };
+
+    const handleGoogleAuth = async () => {
+        setIsGoogleProcessing(true);
+        setError("");
+        setSuccess("");
+        try {
+            const { user } = await signInWithPopup(auth, googleProvider);
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            let userName = user.displayName || "Google User";
+
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    name: userName,
+                    email: user.email,
+                    createdAt: new Date().toISOString(),
+                    signupMethod: "google",
+                });
+                setSuccess("🎉 Google sign up successful! Redirecting...");
+            } else {
+                 // Optionally update name from Google profile if Firestore doc exists
+                 // const userData = userDoc.data();
+                 // if (userData.name !== userName && user.displayName) {
+                 //     await updateDoc(userDocRef, { name: user.displayName });
+                 // }
+                setSuccess("🔑 Google sign in successful! Redirecting...");
+            }
+            setTimeout(() => redirectToDashboard(user.uid), 1500);
+        } catch (error) {
+            handleAuthError(error);
+        } finally {
+            setIsGoogleProcessing(false);
+        }
+    };
+
+    // Function to clear inputs and errors when toggling form type
+    const toggleFormType = () => {
+        setIsNewUser(!isNewUser);
+        setError("");
+        setSuccess("");
+        setName('');
+        setEmail('');
+        setPassword('');
+    };
+
+
+    return (
+        // Outermost Container: Handles full page centering and height
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: { xs: '100vh', sm: '100dvh' },
+                p: 2,                    
+                boxSizing: 'border-box', 
+                width: '100%',            
+            }}
         >
-            {/* Show spinner OR dynamic text */}
-            {isGoogleProcessing ? (
-                <CircularProgress size={24} color="inherit" />
-            ) : (
-                isNewUser ? "Sign up with Google" : "Continue with Google"
-            )}
-        </Button>
+            {/* Form Content Container: Controls the width of the form itself */}
+            <Box
+                sx={{
+                    width: "100%",    
+                    maxWidth: 400,         
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',      // Center items within this box too (good practice)
+                }}
+            >
+                {/* Logo and Title */}
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "10px", mb: { xs: 3, sm: 5 } }}> {/* Responsive margin */}
+                    {/* Consider making Image responsive if needed */}
+                    <Image src="/logo.png" alt="logo" width={106} height={16} priority />
+                    <Box sx={{ width: "74px", textAlign: 'center' }}>
+                        <Typography
+                            sx={{
+                                fontFamily: 'Instrument Sans, sans-serif',
+                                fontWeight: 400,
+                                fontSize: '10px',
+                                lineHeight: '1.2', // Slightly more line height
+                                letterSpacing: '0%',
+                                background: 'linear-gradient(90deg, rgba(223, 29, 29, 0.69) 7.21%, rgba(102, 102, 102, 0.38) 27.88%, rgba(226, 185, 21, 0.55) 53.85%, rgba(226, 185, 21, 0.4) 94.71%)',
+                                WebkitBackgroundClip: 'text',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                            }}>
+                            INVENTORY MANAGEMENT SYSTEM
+                        </Typography>
+                    </Box>
+                </Box>
 
-        {/* Divider */}
-         <Divider sx={{ my: 2, color: "#5f6368", fontFamily: "Manrope", fontWeight: 800, fontSize: 14, lineHeight: "normal", letterSpacing: "0%" }} >
-          OR
-        </Divider>
-
-        {/* --- Conditional Fields --- */}
-
-        {/* Signup Only Fields */}
-        {isNewUser && (
-          <>
-            {/* Name Field (Added) */}
-            <TextField
-                label="Name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                fullWidth
-                sx={textFieldStyles} // Use common styles
-            />
-          </>
-        )}
-
-        {/* Email Field (Common to both) */}
-        <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            sx={emailTextFieldStyles}
-        />
-
-        {/* Password Field (Common to both) */}
-        <TextField
-          label="Password"
-          type={showPassword ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          fullWidth
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={handleClickShowPassword} edge="end" aria-label="toggle password visibility" >
-                  {showPassword ? <Visibility /> : <VisibilityOff />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-          sx={textFieldStyles} // Use common styles
-        />
+                {/* Alerts Container */}
+                <Box sx={{ width: '100%', mb: 2 }}>
+                     {success && <Alert severity="success" sx={{ width: '100%' }} onClose={() => setSuccess("")}>{success}</Alert>}
+                     {error && <Alert severity="error" sx={{ width: '100%' }} onClose={() => setError("")}>{error}</Alert>}
+                </Box>
 
 
+                {/* Google Button */}
+                <Button
+                    variant="outlined"
+                    onClick={handleGoogleAuth}
+                    fullWidth // Takes width from parent Box (max 400px)
+                    disabled={isGoogleProcessing || isEmailProcessing}
+                    startIcon={!isGoogleProcessing ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18" style={{ marginRight: '8px' }}>
+                            {/* Minified SVG paths */}
+                            <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2.1 1.4-4.7 2.2-7.2 2.2-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l.1-.1 6.2 5.2C41 39.2 44 34 44 24c0-1.4-.1-2.7-.4-4z"/>
+                        </svg>
+                    ) : null}
+                    sx={googleButtonStyles} // Styles WITHOUT fixed width
+                >
+                    {isGoogleProcessing ? (
+                        <CircularProgress size={24} color="inherit" />
+                    ) : (
+                        isNewUser ? "Sign up with Google" : "Continue with Google"
+                    )}
+                </Button>
 
-        {/* Main Action Button (Email/Password) */}
-        <Button
-          variant="contained"
-          onClick={handleAuth}
-          fullWidth
-          disabled={isEmailProcessing || isGoogleProcessing}
-          sx={mainButtonStyles}
-        >
-          {isEmailProcessing ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : isNewUser ? (
-            "Create Account" // Or "Sign Up" if preferred
-          ) : (
-            "Sign In" // Changed from "Log In"
-          )}
-        </Button>
+                {/* Divider */}
+                <Divider sx={{ my: 2, color: "#5f6368", fontFamily: "Manrope, sans-serif", fontWeight: 800, fontSize: 14, width: '100%' }} >
+                    OR
+                </Divider>
 
-        {/* Toggle Sign up/Sign In */}
-        <Typography sx={{ mb: 4,textAlign: 'center', color: "rgba(139, 139, 139, 1)" }} >
-          {/* Changed text */}
-          {isNewUser ? "Have an account?" : "Don't have an account?"}
-          <Button
-            variant="text"
-            size="small"
-            disabled={isEmailProcessing || isGoogleProcessing}
-            // Clear fields and errors when toggling
-            onClick={() => {
-                setIsNewUser(!isNewUser);
-                setError("");
-                setSuccess("");
-                // Clear input fields - Added name, removed confirmPassword/terms
-                setName('');
-                setEmail('');
-                setPassword('');
-             }}
-            sx={{ color: "rgba(62, 169, 211, 1)", fontWeight: 400, fontSize: "14px" ,textTransform: 'none', p: '0 4px', minWidth: 'auto', '&:hover': { bgcolor: 'transparent' },textDecoration: 'underline' }}
-          >
-            {/* Changed text */}
-            {isNewUser ? "Sign In" : "Sign up"}
-          </Button>
-        </Typography>
-      </Box>
-    </Box>
-  );
+                {/* --- Conditional Fields --- */}
+                {isNewUser && (
+                    <TextField
+                        label="Name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        fullWidth // Takes width from parent Box
+                        sx={textFieldStyles}
+                        required
+                    />
+                )}
+
+                {/* Email Field */}
+                <TextField
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    fullWidth // Takes width from parent Box
+                    sx={emailTextFieldStyles}
+                    required
+                />
+
+                {/* Password Field */}
+                <TextField
+                    label="Password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete={isNewUser ? "new-password" : "current-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    fullWidth // Takes width from parent Box
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton onClick={handleClickShowPassword} edge="end" aria-label="toggle password visibility" >
+                                    {showPassword ? <Visibility fontSize="small"/> : <VisibilityOff fontSize="small"/>}
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
+                    sx={textFieldStyles}
+                    required
+                />
+
+                {/* Main Action Button */}
+                <Button
+                    variant="contained"
+                    onClick={handleAuth}
+                    fullWidth // Takes width from parent Box
+                    disabled={isEmailProcessing || isGoogleProcessing}
+                    sx={mainButtonStyles} // Styles WITHOUT fixed width
+                >
+                    {isEmailProcessing ? (
+                        <CircularProgress size={24} color="inherit" />
+                    ) : isNewUser ? (
+                        "Create Account"
+                    ) : (
+                        "Sign In"
+                    )}
+                </Button>
+
+                {/* Toggle Sign up/Sign In */}
+                <Typography sx={{ mt: 1, mb: 2, textAlign: 'center', color: "text.secondary", fontSize: '14px' }} >
+                    {isNewUser ? "Have an account?" : "Don't have an account?"}
+                    <Button
+                        variant="text"
+                        size="small"
+                        disabled={isEmailProcessing || isGoogleProcessing}
+                        onClick={toggleFormType} // Use the cleanup function
+                        sx={{
+                            color: "primary.main", // Use theme color
+                            fontWeight: 500, // Slightly bolder
+                            fontSize: "14px",
+                            textTransform: 'none',
+                            p: '0 4px',
+                            ml: '4px', // Add space before button
+                            minWidth: 'auto',
+                            '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+                         }}
+                    >
+                        {isNewUser ? "Sign In" : "Sign up"}
+                    </Button>
+                </Typography>
+            </Box> {/* End Form Content Container Box */}
+        </Box> // End Outermost Centering Box
+    );
 }
