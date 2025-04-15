@@ -87,7 +87,7 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
     return (
         <Box>
             {/* --- UPDATED Two-Part Button --- */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mx: 'auto' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mx: 'auto' , width: "100%"}}>
                 <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" }, maxWidth: `${cardMaxWidth}px`, width: 'calc(100% - 5px)', margin: { xs: '16px auto', sm: '24px auto' }, }} >
                     {/* Clickable Area 1: Generate with AI (Triggers prop function) */}
                     <Box onClick={onGenerateWithAiClick} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}>
