@@ -16,7 +16,7 @@ import {
     DialogContent,
     DialogActions,
 } from "@mui/material";
-import { IoIosNotificationsOutline, IoIosSwitch,IoMdSwitch } from "react-icons/io";
+import { IoIosNotificationsOutline} from "react-icons/io";
 import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
@@ -119,14 +119,7 @@ const Header = React.forwardRef(({ user, onSignOut }, ref) => {
             >
                 {/* Left Side: Icon + Brand Name */}
                 <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <IoMdSwitch
-                        style={{
-                            width: 28, // Adjust size as needed
-                            height: 28,
-                            color: "rgba(51, 54, 63, 1)", // Example color, adjust as needed
-                        }}
-                    />
-                    <Image src="/logo.png" alt="logo" width={125} height={19} />
+                    <Image src="/logo.png" alt="logo" width={108} height={52} />
                 </Box>
 
                 {/* Right Side: Icons & User Avatar */}
