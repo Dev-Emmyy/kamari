@@ -12,7 +12,7 @@ import {
     InputAdornment,
     CircularProgress,
     Alert,
-    useTheme, // Import useTheme hook if needed for spacing units
+    Link,
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -20,19 +20,17 @@ import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signInWithPopup,
-    // updateProfile // Import if you want to update auth profile name too
+    sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "../../lib/firebase"; // Ensure path is correct
+import { auth, db, googleProvider } from "../../lib/firebase";
 import Image from "next/image";
-
-// --- Style Definitions (No Fixed Widths Here) ---
 
 // Base styles for text fields (Name, Password)
 const textFieldStyles = {
-    mb: 2.5, // Use theme spacing or consistent spacing
+    mb: 2.5,
     "& .MuiOutlinedInput-root": {
-        borderRadius: "14px", // Consistent border radius
+        borderRadius: "14px",
         "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
         "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
         "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
@@ -42,12 +40,12 @@ const textFieldStyles = {
     "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
 };
 
-// Specific styles for the Email field (if different border needed)
+// Specific styles for the Email field
 const emailTextFieldStyles = {
-    ...textFieldStyles, // Inherit base styles
+    ...textFieldStyles,
     "& .MuiOutlinedInput-root": {
-        ...textFieldStyles["& .MuiOutlinedInput-root"], // Inherit base input root styles
-        "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, // Override border
+        ...textFieldStyles["& .MuiOutlinedInput-root"],
+        "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
         "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
         "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" },
     },
@@ -55,32 +53,32 @@ const emailTextFieldStyles = {
 
 // Google Button styles
 const googleButtonStyles = {
-    mb: 2.5, // Consistent spacing
-    border: '1px solid rgba(193, 213, 246, 1)', // Correct border property
+    mb: 2.5,
+    border: '1px solid rgba(193, 213, 246, 1)',
     borderRadius: "15px",
     color: "rgba(31, 31, 31, 1)",
-    bgcolor: "background.paper", // Use theme color
+    bgcolor: "background.paper",
     textTransform: "none",
-    fontFamily: "Manrope, sans-serif", // Add fallback font
+    fontFamily: "Manrope, sans-serif",
     fontWeight: 500,
     fontSize: "14px",
-    lineHeight: "1", // Simpler line height
+    lineHeight: "1",
     padding: "10px 12px",
     height: "45px",
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     '&:hover': {
-        bgcolor: 'rgba(0, 0, 0, 0.03)' // Slight hover effect
+        bgcolor: 'rgba(0, 0, 0, 0.03)'
     }
 };
 
 // Main Action Button styles (Sign In/Sign Up)
 const mainButtonStyles = {
-    mt: 1, // Margin top after last input
-    mb: 3, // Consistent spacing
+    mt: 1,
+    mb: 3,
     borderStyle: 'none',
-    bgcolor: "rgba(34, 34, 34, 1)", // Or use theme.palette.primary.main
+    bgcolor: "rgba(34, 34, 34, 1)",
     padding: "10px 12px",
     textTransform: "none",
     borderRadius: "15px",
@@ -89,37 +87,38 @@ const mainButtonStyles = {
     fontWeight: 400,
     fontSize: "14px",
     lineHeight: "normal",
-    color: "#FFFFFF", // Or theme.palette.primary.contrastText
+    color: "#FFFFFF",
     height: "48px",
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     '&:hover': {
-        bgcolor: "rgba(50, 50, 50, 1)", // Darken slightly on hover
+        bgcolor: "rgba(50, 50, 50, 1)",
     },
     '&:disabled': {
-        bgcolor: 'rgba(0, 0, 0, 0.12)', // Disabled style
+        bgcolor: 'rgba(0, 0, 0, 0.12)',
         color: 'rgba(0, 0, 0, 0.26)',
         boxShadow: 'none',
     }
 };
 
-
 export default function AuthForm() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
     const [isEmailProcessing, setIsEmailProcessing] = useState(false);
     const [isNewUser, setIsNewUser] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const router = useRouter();
-    // const theme = useTheme(); // Uncomment if using theme.spacing
 
     const handleClickShowPassword = () => setShowPassword((prev) => !prev);
+    const handleClickShowConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
 
     const handleAuthError = (error) => {
         console.error("Auth error:", error);
@@ -155,8 +154,8 @@ export default function AuthForm() {
                     message = 'Google sign-in popup was blocked or cancelled. Please allow popups for this site.';
                     break;
                 default:
-                   message = error.message.includes('auth/') ? error.message.split('auth/')[1].split(')')[0].replace(/-/g, ' ') : "Authentication failed. Please try again."; // Try to make Firebase errors more readable
-                   message = message.charAt(0).toUpperCase() + message.slice(1) + '.'; // Capitalize
+                   message = error.message.includes('auth/') ? error.message.split('auth/')[1].split(')')[0].replace(/-/g, ' ') : "Authentication failed. Please try again.";
+                   message = message.charAt(0).toUpperCase() + message.slice(1) + '.';
             }
         } else if (error.message) {
              message = error.message;
@@ -175,6 +174,20 @@ export default function AuthForm() {
         router.push(redirectPath);
     };
 
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError("Please enter your email address to reset password.");
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setSuccess("Password reset email sent. Please check your inbox.");
+        } catch (error) {
+            handleAuthError(error);
+        }
+    };
+
     const handleAuth = async () => {
         setIsEmailProcessing(true);
         setError("");
@@ -187,17 +200,21 @@ export default function AuthForm() {
                 setIsEmailProcessing(false);
                 return;
             }
-             if (!email.trim() || !password.trim()) {
+            if (!email.trim() || !password.trim()) {
                 setError("Please enter both email and password.");
                 setIsEmailProcessing(false);
                 return;
             }
-            // Add password validation (e.g., length) if desired before calling Firebase
-             if (password.length < 6) {
-                 setError("Password should be at least 6 characters.");
-                 setIsEmailProcessing(false);
-                 return;
-             }
+            if (password !== confirmPassword) {
+                setError("Passwords do not match.");
+                setIsEmailProcessing(false);
+                return;
+            }
+            if (password.length < 6) {
+                setError("Password should be at least 6 characters.");
+                setIsEmailProcessing(false);
+                return;
+            }
 
             try {
                 const { user } = await createUserWithEmailAndPassword(auth, email, password);
@@ -216,11 +233,11 @@ export default function AuthForm() {
             }
         } else {
             // Sign In
-             if (!email.trim() || !password.trim()) {
+            if (!email.trim() || !password.trim()) {
                 setError("Please enter both email and password.");
                 setIsEmailProcessing(false);
                 return;
-             }
+            }
 
             try {
                 const { user } = await signInWithEmailAndPassword(auth, email, password);
@@ -229,9 +246,9 @@ export default function AuthForm() {
 
                 if (!userDoc.exists()) {
                     console.warn("User authenticated (email) but no Firestore doc found for UID:", user.uid);
-                     await setDoc(userDocRef, {
+                    await setDoc(userDocRef, {
                         email: user.email,
-                        name: "User", // Default name if missing
+                        name: "User",
                         createdAt: new Date().toISOString(),
                         signupMethod: "email",
                     });
@@ -267,11 +284,6 @@ export default function AuthForm() {
                 });
                 setSuccess("🎉 Google sign up successful! Redirecting...");
             } else {
-                 // Optionally update name from Google profile if Firestore doc exists
-                 // const userData = userDoc.data();
-                 // if (userData.name !== userName && user.displayName) {
-                 //     await updateDoc(userDocRef, { name: user.displayName });
-                 // }
                 setSuccess("🔑 Google sign in successful! Redirecting...");
             }
             setTimeout(() => redirectToDashboard(user.uid), 1500);
@@ -282,7 +294,6 @@ export default function AuthForm() {
         }
     };
 
-    // Function to clear inputs and errors when toggling form type
     const toggleFormType = () => {
         setIsNewUser(!isNewUser);
         setError("");
@@ -290,11 +301,10 @@ export default function AuthForm() {
         setName('');
         setEmail('');
         setPassword('');
+        setConfirmPassword('');
     };
 
-
     return (
-        // Outermost Container: Handles full page centering and height
         <Box
             sx={{
                 display: "flex",
@@ -307,58 +317,38 @@ export default function AuthForm() {
                 width: '100%',            
             }}
         >
-            {/* Form Content Container: Controls the width of the form itself */}
             <Box
                 sx={{
                     width: "100%",    
-                    maxWidth: 400,         
+                    maxWidth: 298,         
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',      // Center items within this box too (good practice)
+                    alignItems: 'center',
                 }}
             >
-                {/* Logo and Title */}
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "10px", mb: { xs: 3, sm: 5 } }}> {/* Responsive margin */}
-                    {/* Consider making Image responsive if needed */}
-                    <Image src="/logo.png" alt="logo" width={106} height={16} priority />
-                    <Box sx={{ width: "74px", textAlign: 'center' }}>
-                        <Typography
-                            sx={{
-                                fontFamily: 'Instrument Sans, sans-serif',
-                                fontWeight: 400,
-                                fontSize: '10px',
-                                lineHeight: '1.2', // Slightly more line height
-                                letterSpacing: '0%',
-                                background: 'linear-gradient(90deg, rgba(223, 29, 29, 0.69) 7.21%, rgba(102, 102, 102, 0.38) 27.88%, rgba(226, 185, 21, 0.55) 53.85%, rgba(226, 185, 21, 0.4) 94.71%)',
-                                WebkitBackgroundClip: 'text',
-                                backgroundClip: 'text',
-                                color: 'transparent',
-                            }}>
-                            INVENTORY MANAGEMENT SYSTEM
-                        </Typography>
-                    </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "10px", mb: { xs: 3, sm: 5 } }}>
+                    <Image src="/logo.png" alt="logo" width={200} height={96} priority />
                 </Box>
 
-                {/* Alerts Container */}
                 <Box sx={{ width: '100%', mb: 2 }}>
-                     {success && <Alert severity="success" sx={{ maxWidth: 400 }} onClose={() => setSuccess("")}>{success}</Alert>}
-                     {error && <Alert severity="error" sx={{ maxWidth: 400 }} onClose={() => setError("")}>{error}</Alert>}
+                    {success && <Alert severity="success" sx={{ maxWidth: 400 }} onClose={() => setSuccess("")}>{success}</Alert>}
+                    {error && <Alert severity="error" sx={{ maxWidth: 400 }} onClose={() => setError("")}>{error}</Alert>}
                 </Box>
 
-
-                {/* Google Button */}
                 <Button
                     variant="outlined"
                     onClick={handleGoogleAuth}
-                    fullWidth // Takes width from parent Box (max 400px)
+                    fullWidth
                     disabled={isGoogleProcessing || isEmailProcessing}
                     startIcon={!isGoogleProcessing ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18" style={{ marginRight: '8px' }}>
-                            {/* Minified SVG paths */}
-                            <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2.1 1.4-4.7 2.2-7.2 2.2-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l.1-.1 6.2 5.2C41 39.2 44 34 44 24c0-1.4-.1-2.7-.4-4z"/>
+                            <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.4-.1-2.7-.4-4z"/>
+                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2.1 1.4-4.7 2.2-7.2 2.2-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                            <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l.1-.1 6.2 5.2C41 39.2 44 34 44 24c0-1.4-.1-2.7-.4-4z"/>
                         </svg>
                     ) : null}
-                    sx={googleButtonStyles} // Styles WITHOUT fixed width
+                    sx={googleButtonStyles}
                 >
                     {isGoogleProcessing ? (
                         <CircularProgress size={24} color="inherit" />
@@ -367,48 +357,44 @@ export default function AuthForm() {
                     )}
                 </Button>
 
-                {/* Divider */}
                 <Divider sx={{ my: 2, color: "#5f6368", fontFamily: "Manrope, sans-serif", fontWeight: 800, fontSize: 14, width: '100%' }} >
                     OR
                 </Divider>
 
-                {/* --- Conditional Fields --- */}
                 {isNewUser && (
                     <TextField
                         label="Name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        fullWidth // Takes width from parent Box
+                        fullWidth
                         sx={textFieldStyles}
                         required
                     />
                 )}
 
-                {/* Email Field */}
                 <TextField
                     label="Email"
                     type="email"
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    fullWidth // Takes width from parent Box
+                    fullWidth
                     sx={emailTextFieldStyles}
                     required
                 />
 
-                {/* Password Field */}
                 <TextField
                     label="Password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={isNewUser ? "new-password" : "current-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    fullWidth // Takes width from parent Box
+                    fullWidth
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
-                                <IconButton onClick={handleClickShowPassword} edge="end" aria-label="toggle password visibility" >
+                                <IconButton onClick={handleClickShowPassword} edge="end">
                                     {showPassword ? <Visibility fontSize="small"/> : <VisibilityOff fontSize="small"/>}
                                 </IconButton>
                             </InputAdornment>
@@ -418,13 +404,56 @@ export default function AuthForm() {
                     required
                 />
 
-                {/* Main Action Button */}
+                {isNewUser && (
+                    <TextField
+                        label="Confirm Password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        fullWidth
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton 
+                                        onClick={handleClickShowConfirmPassword} 
+                                        edge="end"
+                                    >
+                                        {showConfirmPassword ? <Visibility fontSize="small"/> : <VisibilityOff fontSize="small"/>}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={textFieldStyles}
+                        required
+                    />
+                )}
+
+                {!isNewUser && (
+                    <Box sx={{ width: '100%', textAlign: 'left', mb: 2 }}>
+                        <Link
+                            component="button"
+                            variant="body2"
+                            onClick={handleForgotPassword}
+                            sx={{
+                                fontSize: '14px',
+                                color: 'rgba(66, 64, 61, 1)',
+                                fontFamily: "Manrope, sans-serif",
+                                fontWeight: 400,
+                                textDecoration: 'none',
+                            }}
+                        >
+                            Forgot your password?
+                        </Link>
+                    </Box>
+                )}
+
                 <Button
                     variant="contained"
                     onClick={handleAuth}
-                    fullWidth // Takes width from parent Box
+                    fullWidth
                     disabled={isEmailProcessing || isGoogleProcessing}
-                    sx={mainButtonStyles} // Styles WITHOUT fixed width
+                    sx={mainButtonStyles}
                 >
                     {isEmailProcessing ? (
                         <CircularProgress size={24} color="inherit" />
@@ -435,29 +464,28 @@ export default function AuthForm() {
                     )}
                 </Button>
 
-                {/* Toggle Sign up/Sign In */}
                 <Typography sx={{ mt: 1, mb: 2, textAlign: 'center', color: "text.secondary", fontSize: '14px' }} >
                     {isNewUser ? "Have an account?" : "Don't have an account?"}
                     <Button
                         variant="text"
                         size="small"
                         disabled={isEmailProcessing || isGoogleProcessing}
-                        onClick={toggleFormType} // Use the cleanup function
+                        onClick={toggleFormType}
                         sx={{
-                            color: "primary.main", // Use theme color
-                            fontWeight: 500, // Slightly bolder
+                            color: "primary.main",
+                            fontWeight: 500,
                             fontSize: "14px",
                             textTransform: 'none',
                             p: '0 4px',
-                            ml: '4px', // Add space before button
+                            ml: '4px',
                             minWidth: 'auto',
                             '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
-                         }}
+                        }}
                     >
                         {isNewUser ? "Sign In" : "Sign up"}
                     </Button>
                 </Typography>
-            </Box> {/* End Form Content Container Box */}
-        </Box> // End Outermost Centering Box
+            </Box>
+        </Box>
     );
 }
