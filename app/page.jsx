@@ -1,9 +1,10 @@
 // app/page.jsx
 'use client';
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, useMediaQuery, useTheme, } from "@mui/material";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { TfiHandPointLeft } from "react-icons/tfi";
+import SmartphoneIcon from '@mui/icons-material/Smartphone';
 
 // Main Action Button styles (Sign In/Sign Up)
 const mainButtonStyles = {
@@ -36,8 +37,41 @@ const mainButtonStyles = {
     }
 };
 
+
+const DesktopWarning = () => (
+    <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        textAlign: 'center',
+        p: 3,
+        bgcolor: 'background.paper'
+    }}>
+        <SmartphoneIcon sx={{ fontSize: 60, mb: 2, color: 'text.secondary' }} />
+        <Typography variant="h5" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Mobile View Recommended
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+            This application is designed for mobile use.
+            <br />
+            Please switch to a phone or use browser developer tools
+            <br />
+            to emulate a mobile screen for the intended experience.
+        </Typography>
+    </Box>
+);
+
+
 export default function Home() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const router = useRouter();
+
+    if (!isMobile) {
+        return <DesktopWarning />; // Use the component defined above
+    }
 
     return (
         <Box sx={{

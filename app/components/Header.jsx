@@ -24,7 +24,7 @@ import Image from "next/image";
 
 // Removed 'onMenuClick' from props
 // Added 'onSignOut' to props if it wasn't explicitly passed before but needed for logout
-const Header = React.forwardRef(({ user, onSignOut }, ref) => {
+const Header = React.forwardRef(({ user, onSignOut, backgroundColor = 'rgb(246, 246, 246)', activeColor  =  "rgba(51, 54, 63, 1)" }, ref) => {
     // Removed searchQuery state and searchRef
     const [profileAnchorEl, setProfileAnchorEl] = useState(null);
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
@@ -99,8 +99,8 @@ const Header = React.forwardRef(({ user, onSignOut }, ref) => {
             ref={ref}
             tabIndex={-1} // Can remove tabIndex if focus management isn't needed here
             sx={{
-                backgroundColor: "#fff",
-                boxShadow: "0px 4px 10px 0px rgba(194, 194, 194, 0.25)", // Adjusted shadow alpha
+                bgcolor: backgroundColor,
+                boxShadow: "none", // Adjusted shadow alpha
                 width: "100%",
                 mb: "20px",
                 top: 0, // Ensure it sticks to the top
@@ -133,7 +133,7 @@ const Header = React.forwardRef(({ user, onSignOut }, ref) => {
                             style={{
                                 width: 24,
                                 height: 24,
-                                // color: "rgba(51, 54, 63, 1)", // Color from sx now
+                                color: activeColor,
                             }}
                         />
                     </IconButton>
