@@ -533,6 +533,7 @@ const AddItemContent = ({ user, router, initialData }) => {
         <Box
           sx={{
             mt: 3,
+            mb: 5,
             p: `${buttonBorderWidth}px`,
             background: buttonGradientBorder,
             border: borderRaidusColor,

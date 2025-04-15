@@ -40,7 +40,7 @@ import LoadingOverlay from "../../components/LoadingOverlay"; // *** Import the 
 // ... (Keep all relevant style constants) ...
 const groupMaxWidth = 347.31; const groupHeight = 51.40; const groupBorderRadius = 13.89; const borderWidth = 0.5; const gradientBorder = 'linear-gradient(90deg, rgba(223, 29, 29, 0.69) 7.21%, rgba(102, 102, 102, 0.38) 27.88%, rgba(226, 185, 21, 0.55) 53.85%, rgba(226, 185, 21, 0.4) 94.71%)'; const activeBgColor = 'rgba(34, 34, 34, 1)'; const baseFontWeight = 400; const baseFontSize = '16.67px'; const fontFamily = 'Instrument Sans, sans-serif';
 const cardMaxWidth = 372.29; const cardHeight = 84.42; const cardBorderRadius = '8.32px'; const cardPaddingTB = '9.38px'; const cardPaddingLR = '10.32px'; const cardBg = 'rgba(255, 255, 255, 1)'; const cardGap = '9.38px'; const invTitleFontFamily = 'Manrope, sans-serif'; const invTitleFontWeight = 600; const invTitleFontSize = '14.27px'; const invTitleColor = 'rgba(99, 102, 110, 1)'; const invDateFontFamily = 'Manrope, sans-serif'; const invDateFontWeight = 600; const invDateFontSize = '12px'; const invDateColor = 'rgba(139, 139, 139, 1)'; const invStatusBoxHeight = '20.21px'; const invStatusBoxRadius = '11.89px'; const invStatusTextFontFamily = 'Manrope, sans-serif'; const invStatusTextFontWeight = 800; const invStatusTextFontSize = '6.55px'; const invAmountFontFamily = 'Manrope, sans-serif'; const invAmountFontWeight = 600; const invAmountFontSize = '12px'; const invAmountColor = 'rgba(30, 30, 30, 1)'; const invChevronSize = '25.32px'; const invChevronColor = 'rgba(51, 54, 63, 1)'; const invImageBoxSize = '84.42px'; const invImageBorderRadius = '8px'; const stockTextFontFamily = 'Manrope, sans-serif'; const stockTextFontWeight = 600; const stockTextFontSize = '14px'; const stockTextColor = 'rgba(30, 30, 30, 1)'; const fulfillButtonWidth = '112px'; const fulfillButtonHeight = '41px'; const fulfillButtonRadius = '7px'; const fulfillButtonPadding = '12px 16px'; const fulfillButtonBg = 'rgba(34, 34, 34, 1)'; const fulfillButtonTextColor = 'rgba(255, 255, 255, 1)'; const fulfillButtonFontFamily = 'Manrope, sans-serif'; const fulfillButtonFontWeight = 600; const fulfillButtonFontSize = '12px'; const deleteButtonBg = 'rgba(216, 59, 59, 1)';
-const mainButtonStyles = { mt: 1, mb: 3, borderStyle: 'none', bgcolor: "rgba(34, 34, 34, 1)", padding: "10px 12px", textTransform: "none", borderRadius: "13px", boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)", fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", width: "369px", lineHeight: "normal", color: "#FFFFFF", height: "84px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, '&:hover': { bgcolor: "rgba(50, 50, 50, 1)", }, '&:disabled': { bgcolor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)', boxShadow: 'none', } };
+const mainButtonStyles = { mt: 1, mb: 3, borderStyle: 'none', bgcolor: "rgba(34, 34, 34, 1)", padding: "10px 12px", textTransform: "none", borderRadius: "13px", boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)", fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", width: "369px", lineHeight: "normal", color: "#FFFFFF", height: "84px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, '&:hover': { bgcolor: "rgba(50, 50, 50, 1)", }, '&:disabled': { bgcolor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)', boxShadow: 'none', width: "100%" } };
 
 
 // --- Helper Functions ---
@@ -88,7 +88,7 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
         <Box>
             {/* --- UPDATED Two-Part Button --- */}
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mx: 'auto' }}>
-                <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" } }} >
+                <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" }, maxWidth: `${cardMaxWidth}px`, width: 'calc(100% - 5px)', margin: { xs: '16px auto', sm: '24px auto' }, }} >
                     {/* Clickable Area 1: Generate with AI (Triggers prop function) */}
                     <Box onClick={onGenerateWithAiClick} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}>
                         <Image src="/capture.png" alt="Generate with AI Icon" width={61} height={61} priority style={{ flexShrink: 0 }} />
@@ -246,7 +246,7 @@ export default function Dashboard() {
      if (!isMobile) { return <DesktopWarning />; }
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#F8F8F8' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#F8F8F8',  }}>
             {/* --- *** Conditionally render loading overlay *** --- */}
             {isAiLoading && <LoadingOverlay />}
 

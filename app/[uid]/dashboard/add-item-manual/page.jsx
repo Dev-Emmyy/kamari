@@ -24,7 +24,7 @@ import { auth, db, storage } from "../../../../lib/firebase"; // Adjust path
 import Header from "../../../components/Header"; // Adjust path
 
 // --- Style Constants (Copied from previous manual page) ---
-const inputMaxWidth = 369;
+const inputMaxWidth = 329;
 const inputHeight = 51.40;
 const descHeight = 162; // Approx height for description multiline
 const borderRadiusValue = '13.89px';
@@ -187,11 +187,11 @@ export default function AddItemManualPage() {
     if (!user) { return null; } // Wait for user
 
     return (
-        <Box sx={{  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: "center", bgcolor: '#F8F8F8' }}>
+        <Box sx={{  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: "center", bgcolor: '#F8F8F8', width:"100%" }}>
             {/* Use Header with default background */}
             <Header user={user} onSignOut={handleSignOut} ref={headerRef} />
 
-                <Box component="form" onSubmit={handleCreateItem} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: "center", gap: { xs: 1.5, sm: 2 }, width: '100%', maxWidth: `${inputMaxWidth}px`, mt: 5 }}>
+                <Box component="form" onSubmit={handleCreateItem} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: "center", gap: { xs: 1.5, sm: 2 }, width: '100%', maxWidth: `${inputMaxWidth}px`, mt: 5, height: "100vh" }}>
 
                     {/* --- NEW Image Upload Button --- */}
                     <input type="file" ref={fileInputRef} onChange={handleFileChange}accept="image/*"style={{ display: 'none' }} />
@@ -278,7 +278,7 @@ export default function AddItemManualPage() {
                     {error && <Typography color="error" variant="body2" sx={{ mt: 1, width: '100%', textAlign: 'center' }}>{error}</Typography>}
 
                     {/* Submit Button */}
-                    <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth sx={{ mt: 2, height: `${submitButtonHeight}px`, borderRadius: borderRadiusValue, textTransform: 'none', fontSize: '16px', fontWeight: '400', bgcolor: 'rgba(34, 34, 34, 1)', color: "rgba(255, 255, 255, 1)" }}>
+                    <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth sx={{ mt: 2, mb: 6 ,height: `${submitButtonHeight}px`, borderRadius: borderRadiusValue, textTransform: 'none', fontSize: '16px', fontWeight: '400', bgcolor: 'rgba(34, 34, 34, 1)', color: "rgba(255, 255, 255, 1)" }}>
                          {isSubmitting ? "Creating..." : 'Create Item'}
                      </Button>
                 </Box>
