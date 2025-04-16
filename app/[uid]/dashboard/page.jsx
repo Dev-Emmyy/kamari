@@ -415,7 +415,18 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
 
 
 // --- SalesOrderContent Placeholder (No changes) ---
-const SalesOrderContent = ({ user }) => { return ( <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh' }}> <Typography variant="h6" color="text.secondary"> Sales / Order View - Coming Soon! </Typography> </Box> ); };
+const SalesOrderContent = ({ user }) =>  { 
+
+    const router = useRouter();
+
+    const handlecreateform = () => {
+       return router.push(`/${user.uid}/dashboard/createorder`);
+    } 
+    
+   return ( 
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh' }}>
+            <Button onClick={handlecreateform}>Create Order</Button>
+        </Box> ); };
 
 
 // ========================================================================
