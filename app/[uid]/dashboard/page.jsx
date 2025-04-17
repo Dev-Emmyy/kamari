@@ -1,6 +1,8 @@
 // app/[uid]/dashboard/page.jsx
 "use client";
 
+import OrderCard from '../../components/OrderCard'; 
+
 // --- React & Next.js Imports ---
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -10,7 +12,7 @@ import Image from "next/image";
 import {
     Box, useTheme, CircularProgress, Typography, ToggleButton, ToggleButtonGroup,
     TextField, Button, InputAdornment, IconButton, Paper, Skeleton, useMediaQuery,
-    Snackbar, Alert,
+    Snackbar, Alert, Divider,
     Collapse // Keep Collapse for expansion
 } from "@mui/material";
 
@@ -415,19 +417,156 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
 
 
 // --- SalesOrderContent Placeholder (No changes) ---
-const SalesOrderContent = ({ user }) =>  { 
+const SalesOrderContent = ({ user }) => {
+    const [orders, setOrders] = useState([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+    const [errorOrders, setErrorOrders] = useState(null);
+    const theme = useTheme();
+    const router = useRouter(); // Assuming useRouter is imported above
 
-    const router = useRouter();
+    // --- Fetch Orders ---
+    useEffect(() => {
+        if (!user?.uid) {
+            setIsLoadingOrders(false);
+            setErrorOrders("User not identified.");
+            return;
+        }
+        setIsLoadingOrders(true);
+        setErrorOrders(null);
 
-    const handlecreateform = () => {
-       return router.push(`/${user.uid}/dashboard/createorder`);
-    } 
-    
-   return ( 
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh' }}>
-            <Button onClick={handlecreateform}>Create Order</Button>
-        </Box> ); };
+        const ordersCollectionRef = collection(db, 'users', user.uid, 'orders'); // Path to orders subcollection
+        const q = query(ordersCollectionRef, orderBy('createdAt', 'desc')); // Order by creation date
 
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const ordersData = querySnapshot.docs.map(doc => ({
+                id: doc.id, // Firestore document ID is the order ID
+                ...doc.data(),
+            }));
+            setOrders(ordersData);
+            setIsLoadingOrders(false);
+        }, (error) => {
+            console.error("Error fetching orders:", error);
+            setErrorOrders(`Failed to load orders: ${error.message}`);
+            setIsLoadingOrders(false);
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, [user]); // Re-run if user changes
+
+    // --- Handlers ---
+    const handleCreateOrder = () => {
+        if (user?.uid) {
+            router.push(`/${user.uid}/dashboard/createorder`);
+        } else {
+            console.error("Cannot navigate: User UID missing.");
+        }
+    };
+
+    const handleFilter = () => alert('Order Filter not implemented.');
+    const handleSort = () => alert('Order Sort not implemented.');
+
+    const handleUpdatePaymentStatus = async (orderId, newStatus) => {
+         if (!user?.uid || !orderId) return;
+         console.log(`Updating Order ${orderId} payment status to ${newStatus}`);
+         const orderDocRef = doc(db, 'users', user.uid, 'orders', orderId);
+         try {
+            await updateDoc(orderDocRef, { paymentStatus: newStatus });
+            // UI updates via onSnapshot listener
+         } catch (error) {
+            console.error("Error updating payment status:", error);
+            alert(`Failed to update payment status: ${error.message}`);
+         }
+    };
+
+     const handleUpdateShippingStatus = async (orderId, newStatus) => {
+        if (!user?.uid || !orderId) return;
+         console.log(`Updating Order ${orderId} shipping status to ${newStatus}`);
+         const orderDocRef = doc(db, 'users', user.uid, 'orders', orderId);
+         try {
+            await updateDoc(orderDocRef, { shippingStatus: newStatus });
+             // UI updates via onSnapshot listener
+         } catch (error) {
+            console.error("Error updating shipping status:", error);
+            alert(`Failed to update shipping status: ${error.message}`);
+         }
+    };
+
+    // --- Render ---
+    return (
+        <Box sx={{width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+
+             {/* --- Sales Summary Section (Placeholder Data) --- */}
+             <Paper elevation={2} sx={{ p: 2, mb: 3, width: '100%', maxWidth: '372.29px', borderRadius: '12px' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary">Sales (Last 30 Days)</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>₦305,450</Typography>
+                        {/* Add trend icon if needed */}
+                    </Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary">Gross Profit</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>₦102,000</Typography>
+                    </Box>
+                </Box>
+            </Paper>
+
+            {/* --- Create Order Button --- */}
+             <Button
+                variant="contained"
+                onClick={handleCreateOrder}
+                startIcon={<Image src="/box.png" width={20} height={20} alt="" style={{ filter: 'brightness(0) invert(1)' }} />} // Example box icon
+                sx={{
+                    mb: 2,
+                    bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', borderRadius: '8px', py: 1.2, px: 3, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' },
+                    width: '100%', maxWidth: '372.29px' // Match card width
+                }}
+            >
+                Create Order
+            </Button>
+
+             {/* --- Filter and Sort Row --- */}
+             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, width: '100%', maxWidth: '372.29px', px: { xs: 0, sm: 1 } }}>
+                <Button size="small" startIcon={<FilterListIcon />} onClick={handleFilter} sx={{ textTransform: 'none', color: 'text.secondary' }}>Filter</Button>
+                <Button size="small" startIcon={<SortIcon />} onClick={handleSort} sx={{ textTransform: 'none', color: 'text.secondary' }}>Sort</Button>
+            </Box>
+
+            {/* --- Orders List --- */}
+            <Box sx={{width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                {isLoadingOrders && (
+                    // Use Skeleton similar to Inventory loading
+                    <Box sx={{width: '100%', maxWidth: '372.29px', margin: '0 auto'}}>
+                        {[...Array(3)].map((_, index) => (
+                            <Skeleton key={index} variant="rounded" width="100%" height={100} sx={{ mb: 2, borderRadius: cardBorderRadius }} />
+                        ))}
+                    </Box>
+                )}
+                {!isLoadingOrders && errorOrders && (
+                    <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>
+                        {errorOrders}
+                    </Typography>
+                )}
+                {!isLoadingOrders && !errorOrders && orders.length === 0 && (
+                    <Typography color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+                        You haven't created any orders yet.
+                    </Typography>
+                )}
+                {!isLoadingOrders && !errorOrders && orders.length > 0 && (
+                    orders.map((order) => (
+                        <OrderCard
+                            key={order.id}
+                            order={order}
+                            onUpdatePaymentStatus={handleUpdatePaymentStatus}
+                            onUpdateShippingStatus={handleUpdateShippingStatus}
+                        />
+                    ))
+                )}
+            </Box>
+
+        </Box>
+    );
+};
 
 // ========================================================================
 // --- Main Dashboard Page Component (No relevant changes needed here) ---
