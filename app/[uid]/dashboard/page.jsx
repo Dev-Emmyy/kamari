@@ -268,151 +268,308 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
     const [errorInventory, setErrorInventory] = useState(null);
     const [expandedItemId, setExpandedItemId] = useState(null);
+    const [isCheckingUsage, setIsCheckingUsage] = useState(false);
     const theme = useTheme();
     const router = useRouter();
-
-    useEffect(() => { // Fetch logic needs BOTH 'stock' and 'status'
-        if (!user?.uid) { setIsLoadingInventory(false); setErrorInventory("User not identified."); return; }
-        setIsLoadingInventory(true); setErrorInventory(null);
-        const itemsCollectionRef = collection(db, 'users', user.uid, 'items');
-        const q = query(itemsCollectionRef, orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const itemsData = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                // Provide defaults if fields are missing in Firestore
-                status: doc.data().status || 'unavailable',
-                stock: doc.data().stock ?? 0
-            }));
-            setItems(itemsData);
-            setIsLoadingInventory(false);
-        }, (error) => {
-            console.error("Error fetching inventory:", error);
-            setErrorInventory(`Failed to load inventory: ${error.message}`);
-            setIsLoadingInventory(false);
-        });
-        return () => unsubscribe();
+  
+    useEffect(() => {
+      if (!user?.uid) {
+        setIsLoadingInventory(false);
+        setErrorInventory("User not identified.");
+        return;
+      }
+      setIsLoadingInventory(true);
+      setErrorInventory(null);
+      const itemsCollectionRef = collection(db, "users", user.uid, "items");
+      const q = query(itemsCollectionRef, orderBy("createdAt", "desc"));
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const itemsData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            status: doc.data().status || "unavailable",
+            stock: doc.data().stock ?? 0,
+          }));
+          setItems(itemsData);
+          setIsLoadingInventory(false);
+        },
+        (error) => {
+          console.error("Error fetching inventory:", error);
+          setErrorInventory(`Failed to load inventory: ${error.message}`);
+          setIsLoadingInventory(false);
+        }
+      );
+      return () => unsubscribe();
     }, [user]);
-
-    // Handler for expansion
-    const handleExpandToggle = (itemId) => setExpandedItemId(prevId => (prevId === itemId ? null : itemId));
-
-    // Handler for deleting
-    const handleDeleteItem = async (itemId, imageUrl) => { /* ... delete logic same ... */
-        if (!user?.uid || !itemId) return;
-        if (!window.confirm(`Delete this item permanently?`)) return;
-        try {
-            const itemDocRef = doc(db, 'users', user.uid, 'items', itemId);
-            await deleteDoc(itemDocRef);
-            console.log("Item document deleted from Firestore.");
-            if (imageUrl) { /* ... image deletion logic ... */
-                try {
-                    let storageRef;
-                    if (imageUrl.startsWith('gs://') || imageUrl.startsWith('http')) {
-                         storageRef = ref(storage, imageUrl);
-                         await deleteObject(storageRef);
-                         console.log("Image deleted from Storage:", imageUrl);
-                    } else { console.warn("Skipping image deletion, invalid URL format:", imageUrl) }
-                } catch (storageError) {
-                    if (storageError.code === 'storage/object-not-found') { console.warn("Image not found in Storage:", imageUrl); }
-                    else { console.error("Error deleting storage object:", storageError); }
-                }
+  
+    const handleExpandToggle = (itemId) =>
+      setExpandedItemId((prevId) => (prevId === itemId ? null : itemId));
+  
+    const handleDeleteItem = async (itemId, imageUrl) => {
+      if (!user?.uid || !itemId) return;
+      if (!window.confirm(`Delete this item permanently?`)) return;
+      try {
+        const itemDocRef = doc(db, "users", user.uid, "items", itemId);
+        await deleteDoc(itemDocRef);
+        console.log("Item document deleted from Firestore.");
+        if (imageUrl) {
+          try {
+            let storageRef;
+            if (imageUrl.startsWith("gs://") || imageUrl.startsWith("http")) {
+              storageRef = ref(storage, imageUrl);
+              await deleteObject(storageRef);
+              console.log("Image deleted from Storage:", imageUrl);
+            } else {
+              console.warn("Skipping image deletion, invalid URL format:", imageUrl);
             }
-             if (expandedItemId === itemId) setExpandedItemId(null);
-        } catch (error) {
-            console.error("Error deleting item:", error);
-            alert(`Failed to delete item: ${error.message}`);
+          } catch (storageError) {
+            if (storageError.code === "storage/object-not-found") {
+              console.warn("Image not found in Storage:", imageUrl);
+            } else {
+              console.error("Error deleting storage object:", storageError);
+            }
+          }
         }
-      };
-
-    // Handler for FULFILLING (Updating STOCK)
+        if (expandedItemId === itemId) setExpandedItemId(null);
+      } catch (error) {
+        console.error("Error deleting item:", error);
+        alert(`Failed to delete item: ${error.message}`);
+      }
+    };
+  
     const handleFulfillItem = async (itemId, newStock) => {
-        if (!user?.uid || typeof newStock !== 'number' || newStock < 0 || !Number.isInteger(newStock)) {
-             alert("Invalid stock value.");
-             return;
-        }
-        console.log(`Updating item ${itemId} stock to ${newStock}`);
-        const itemDocRef = doc(db, 'users', user.uid, 'items', itemId);
-        try {
-            await updateDoc(itemDocRef, {
-                stock: newStock // Update the stock field
-            });
-            console.log(`Successfully updated stock for item ${itemId}`);
-            // UI updates via onSnapshot
-        } catch (error) {
-            console.error("Error updating stock:", error);
-            alert(`Failed to update stock: ${error.message}`);
-        }
-      };
-
-    // **** Handler for Updating STATUS (from badge click) ****
+      if (
+        !user?.uid ||
+        typeof newStock !== "number" ||
+        newStock < 0 ||
+        !Number.isInteger(newStock)
+      ) {
+        alert("Invalid stock value.");
+        return;
+      }
+      console.log(`Updating item ${itemId} stock to ${newStock}`);
+      const itemDocRef = doc(db, "users", user.uid, "items", itemId);
+      try {
+        await updateDoc(itemDocRef, { stock: newStock });
+        console.log(`Successfully updated stock for item ${itemId}`);
+      } catch (error) {
+        console.error("Error updating stock:", error);
+        alert(`Failed to update stock: ${error.message}`);
+      }
+    };
+  
     const handleUpdateStatus = async (itemId, newStatus) => {
-        if (!user?.uid || !itemId || (newStatus !== 'available' && newStatus !== 'unavailable')) {
-             console.error("Invalid status update parameters.");
-             return;
-        }
-        console.log(`Updating item ${itemId} status to ${newStatus}`);
-        const itemDocRef = doc(db, 'users', user.uid, 'items', itemId);
-        try {
-            await updateDoc(itemDocRef, {
-                status: newStatus // Update the status field
-            });
-            console.log(`Successfully updated status for item ${itemId}`);
-             // UI updates via onSnapshot
-        } catch (error) {
-            console.error("Error updating status:", error);
-            alert(`Failed to update status: ${error.message}`);
-        }
-      };
-
-    const handleFilter = () => alert('Filter not implemented.');
-    const handleSort = () => alert('Sort not implemented.');
-    const handleNavigateToAddItemManual = () => { if (user?.uid) router.push(`/${user.uid}/dashboard/add-item-manual`); else console.error("Cannot navigate: User UID missing."); };
-
+      if (
+        !user?.uid ||
+        !itemId ||
+        (newStatus !== "available" && newStatus !== "unavailable")
+      ) {
+        console.error("Invalid status update parameters.");
+        return;
+      }
+      console.log(`Updating item ${itemId} status to ${newStatus}`);
+      const itemDocRef = doc(db, "users", user.uid, "items", itemId);
+      try {
+        await updateDoc(itemDocRef, { status: newStatus });
+        console.log(`Successfully updated status for item ${itemId}`);
+      } catch (error) {
+        console.error("Error updating status:", error);
+        alert(`Failed to update status: ${error.message}`);
+      }
+    };
+  
+    const handleFilter = () => alert("Filter not implemented.");
+    const handleSort = () => alert("Sort not implemented.");
+    const handleNavigateToAddItemManual = () => {
+      if (user?.uid)
+        router.push(`/${user.uid}/dashboard/add-item-manual`);
+      else console.error("Cannot navigate: User UID missing.");
+    };
+  
     return (
-        <Box sx={{display: 'flex', flexDirection : "column" ,justifyContent: 'center', alignItems: 'center', mx: 'auto' , width: "100%"}}>
-            {/* --- Two-Part Button (No changes) --- */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mx: 'auto' , width: "100%"}}>
-                 <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" },width: "100%", margin: { xs: '16px auto', sm: '24px auto' }, }} >
-                    <Box onClick={onGenerateWithAiClick} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}><Image src="/capture.png" alt="Generate with AI Icon" width={61} height={61} priority style={{ flexShrink: 0 }} /><Typography sx={{ fontFamily: "Manrope", fontWeight: 600, color: "rgba(251, 102, 22, 1)", fontSize: "12px", width: "84px", textAlign: "flex-start", flexShrink: 0 }}> Generate item with AI </Typography></Box>
-                    <Box sx={{ width: '2px', height: '45px', bgcolor: 'rgba(246, 246, 246, 0.5)',flexShrink: 0 }} />
-                    <Box onClick={handleNavigateToAddItemManual} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}><Typography sx={{ fontFamily: "Manrope", fontWeight: 700, color: "rgba(246, 246, 246, 1)", fontSize: "12px", width: "96px", textAlign: "center", flexShrink: 0 }}> Create item without image </Typography></Box>
-                 </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          mx: "auto",
+          width: "100%",
+        }}
+      >
+        {/* Two-Part Button */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            mx: "auto",
+            width: "100%",
+          }}
+        >
+          <Box
+            sx={{
+              ...mainButtonStyles,
+              p: 0,
+              cursor: "default",
+              justifyContent: "center",
+              "&:hover": { bgcolor: "rgba(34, 34, 34, 1)" },
+              width: "100%",
+              margin: { xs: "16px auto", sm: "24px auto" },
+            }}
+          >
+            {/* Use label to trigger file input */}
+            <label
+              htmlFor="ai-file-input"
+              style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  p: 1,
+                  flex: 1,
+                  justifyContent: "center",
+                  height: "100%",
+                  pointerEvents: isCheckingUsage ? "none" : "auto",
+                  opacity: isCheckingUsage ? 0.6 : 1,
+                }}
+              >
+                <Image
+                  src="/capture.png"
+                  alt="Generate with AI Icon"
+                  width={61}
+                  height={61}
+                  priority
+                  style={{ flexShrink: 0 }}
+                />
+                <Typography
+                  sx={{
+                    fontFamily: "Manrope",
+                    fontWeight: 600,
+                    color: "rgba(251, 102, 22, 1)",
+                    fontSize: "12px",
+                    width: "84px",
+                    textAlign: "flex-start",
+                    flexShrink: 0,
+                  }}
+                >
+                  Generate item with AI
+                </Typography>
+              </Box>
+            </label>
+            <Box
+              sx={{
+                width: "2px",
+                height: "45px",
+                bgcolor: "rgba(246, 246, 246, 0.5)",
+                flexShrink: 0,
+              }}
+            />
+            <Box
+              onClick={handleNavigateToAddItemManual}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                p: 1,
+                flex: 1,
+                justifyContent: "center",
+                height: "100%",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontFamily: "Manrope",
+                  fontWeight: 700,
+                  color: "rgba(246, 246, 246, 1)",
+                  fontSize: "12px",
+                  width: "96px",
+                  textAlign: "center",
+                  flexShrink: 0,
+                }}
+              >
+                Create item without AI
+              </Typography>
             </Box>
-
-            {/* Filter and Sort Row (No changes) */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, width: '100%', maxWidth: '372.29px', px: { xs: 0, sm: 1 } }}>
-                <Button size="small" startIcon={<FilterListIcon />} onClick={handleFilter} sx={{ textTransform: 'none', color: 'text.secondary' }}>Filter</Button>
-                <Button size="small" startIcon={<SortIcon />} onClick={handleSort} sx={{ textTransform: 'none', color: 'text.secondary' }}>Sort</Button>
-            </Box>
-
-            {/* Inventory List */}
-            <Box>
-                {/* Loading/Error/Empty States */}
-                {isLoadingInventory && ( <Box sx={{width: '100%', maxWidth: `${cardMaxWidth}px`, margin: '0 auto'}}> {[...Array(3)].map((_, index) => ( <Skeleton key={index} variant="rounded" width="100%" height={cardHeight + 60} sx={{ mb: 2, borderRadius: cardBorderRadius }} /> ))} </Box> )}
-                {!isLoadingInventory && errorInventory && (<Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>{errorInventory}</Typography>)}
-                {!isLoadingInventory && !errorInventory && items.length === 0 && (<Typography color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>Inventory is empty. Add an item!</Typography>)}
-
-                {/* Item List Rendering */}
-                {!isLoadingInventory && !errorInventory && items.length > 0 && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        {items.map((item) => (
-                            <InventoryItemCard
-                                key={item.id}
-                                item={item}
-                                isExpanded={expandedItemId === item.id}
-                                onExpandToggle={handleExpandToggle}
-                                onDeleteItem={handleDeleteItem}
-                                onFulfillItem={handleFulfillItem} // For stock update
-                                onUpdateStatus={handleUpdateStatus} // For badge click status toggle
-                            />
-                        ))}
-                    </Box>
-                )}
-            </Box>
+          </Box>
         </Box>
+  
+        {/* Filter and Sort Row */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+            width: "100%",
+            maxWidth: "372.29px",
+            px: { xs: 0, sm: 1 },
+          }}
+        >
+          <Button
+            size="small"
+            startIcon={<FilterListIcon />}
+            onClick={handleFilter}
+            sx={{ textTransform: "none", color: "text.secondary" }}
+          >
+            Filter
+          </Button>
+          <Button
+            size="small"
+            startIcon={<SortIcon />}
+            onClick={handleSort}
+            sx={{ textTransform: "none", color: "text.secondary" }}
+          >
+            Sort
+          </Button>
+        </Box>
+  
+        {/* Inventory List */}
+        <Box>
+          {isLoadingInventory && (
+            <Box sx={{ width: "100%", maxWidth: `${cardMaxWidth}px`, margin: "0 auto" }}>
+              {[...Array(3)].map((_, index) => (
+                <Skeleton
+                  key={index}
+                  variant="rounded"
+                  width="100%"
+                  height={cardHeight + 60}
+                  sx={{ mb: 2, borderRadius: cardBorderRadius }}
+                />
+              ))}
+            </Box>
+          )}
+          {!isLoadingInventory && errorInventory && (
+            <Typography color="error" sx={{ textAlign: "center", mt: 4 }}>
+              {errorInventory}
+            </Typography>
+          )}
+          {!isLoadingInventory && !errorInventory && items.length === 0 && (
+            <Typography color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
+              Inventory is empty. Add an item!
+            </Typography>
+          )}
+          {!isLoadingInventory && !errorInventory && items.length > 0 && (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {items.map((item) => (
+                <InventoryItemCard
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedItemId === item.id}
+                  onExpandToggle={handleExpandToggle}
+                  onDeleteItem={handleDeleteItem}
+                  onFulfillItem={handleFulfillItem}
+                  onUpdateStatus={handleUpdateStatus}
+                />
+              ))}
+            </Box>
+          )}
+        </Box>
+      </Box>
     );
-};
+  };
 
 
 // --- SalesOrderContent Placeholder (No changes) ---
@@ -594,309 +751,429 @@ export default function Dashboard() {
     // --- State & Hooks ---
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeView, setActiveView] = useState('inventory');
+    const [activeView, setActiveView] = useState("inventory");
     const router = useRouter();
     const params = useParams();
     const theme = useTheme();
     const headerRef = useRef(null);
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const activeTextColorCalculated = theme.palette.getContrastText(activeBgColor);
     const inactiveTextColor = theme.palette.text.secondary;
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [aiError, setAiError] = useState(null);
     const aiFileInputRef = useRef(null);
     const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
-    const [isCheckingUsage, setIsCheckingUsage] = useState(false); 
-
-    // --- Auth Logic (No changes) ---
-    useEffect(() => { /* ... */ const unsubscribe = onAuthStateChanged(auth, (currentUser) => { if (currentUser) { const routeUid = params.uid; if (routeUid && currentUser.uid !== routeUid) { router.push(`/login`); setUser(null); setLoading(false); return; } setUser(currentUser); } else { setUser(null); } setLoading(false); }); return () => unsubscribe(); }, [router, params]);
-    useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading, router]);
-    const handleSignOut = async () => { /* ... */ try { await signOut(auth); router.push('/login'); } catch (error) { console.error("Sign out error:", error); } };
-
-    // --- View Toggle Handler (No changes) ---
-    const handleViewChange = (event, newView) => { if (newView !== null) setActiveView(newView); };
-
-    // --- AI Flow Handlers (No changes) ---
-    const handleGenerateWithAiClick = () => { setAiError(null);  checkUsageAndTriggerUpload(); };
-    const checkUsageAndTriggerUpload = async () => {
-        if (!user) {
-            console.error("User not logged in.");
-            // You might want to prompt login here
+    const [isCheckingUsage, setIsCheckingUsage] = useState(false);
+  
+    // --- Auth Logic ---
+    useEffect(() => {
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+          const routeUid = params.uid;
+          if (routeUid && currentUser.uid !== routeUid) {
+            router.push(`/login`);
+            setUser(null);
+            setLoading(false);
             return;
+          }
+          setUser(currentUser);
+        } else {
+          setUser(null);
         }
-    
-        setIsCheckingUsage(true); // Start loading indicator for check
-        const userId = user.uid;
-        const userDocRef = doc(db, "users", userId);
-    
-        try {
-            const userDocSnap = await getDoc(userDocRef);
-            let currentCount = 0;
-            let currentLevel = "free";
-    
-            if (userDocSnap.exists()) {
-                const data = userDocSnap.data();
-                currentCount = data.aiUsageCount || 0;
-                currentLevel = data.accessLevel || "free";
-            } else {
-                console.log("User document doesn't exist, treating as free user with 0 count.");
-                // Optional: Create doc here if needed, or rely on first write to create it
-                // await setDoc(userDocRef, { aiUsageCount: 0, accessLevel: "free" });
-            }
-    
-            console.log(`User: ${userId}, Access Level: ${currentLevel}, Usage Count: ${currentCount}`);
-    
-            const freeLimit = 7;
-    
-            if (currentLevel === "paid" || (currentLevel === "free" && currentCount < freeLimit)) {
-                // User is allowed to proceed (either paid or free within limit)
-                console.log("Usage check passed. Triggering file input.");
-                aiFileInputRef.current?.click(); // <-- Trigger the actual file input click
-            } else {
-                // Free user limit reached
-                console.log("Free user limit reached.");
-                setShowUpgradeAlert(true); // Show the upgrade prompt
-            }
-        } catch (error) {
-            console.error("Error checking user usage:", error);
-            setAiError("Could not verify usage limits. Please try again."); // Show error to user
-        } finally {
-            setIsCheckingUsage(false); // Stop loading indicator for check
-        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    }, [router, params]);
+  
+    useEffect(() => {
+      if (!loading && !user) router.push("/login");
+    }, [user, loading, router]);
+  
+    const handleSignOut = async () => {
+      try {
+        await signOut(auth);
+        router.push("/login");
+      } catch (error) {
+        console.error("Sign out error:", error);
+      }
     };
-    // Paste this inside your Dashboard component, replacing the previous handleAiFileSelected
-
-const handleAiFileSelected = async (event) => {
-    const file = event.target.files?.[0];
-    const currentInput = event.target;
-    if (currentInput) currentInput.value = null; // Clear file input
-
-    if (!file || !file.type.startsWith('image/')) {
-        setAiError(file ? 'Please select a valid image file.' : null);
+  
+    // --- View Toggle Handler ---
+    const handleViewChange = (event, newView) => {
+      if (newView !== null) setActiveView(newView);
+    };
+  
+    // --- AI File Selection Handler with Usage Check ---
+    const handleAiFileSelected = async (event) => {
+      const file = event.target.files?.[0];
+      const currentInput = event.target;
+      if (currentInput) currentInput.value = null; // Clear file input
+  
+      if (!file || !file.type.startsWith("image/")) {
+        setAiError(file ? "Please select a valid image file." : null);
         return;
-    }
-
-    if (!user) { // Re-check user just in case
-         console.error("User became logged out during file selection?");
-         setAiError("Authentication error. Please log in again.");
-         return;
-    }
-    const userId = user.uid;
-    const userDocRef = doc(db, "users", userId); // Need ref again for increment
-
-    // Assume usage check was passed if this function is called
-
-    try {
+      }
+  
+      if (!user) {
+        console.error("User became logged out during file selection?");
+        setAiError("Authentication error. Please log in again.");
+        return;
+      }
+  
+      const userId = user.uid;
+      const userDocRef = doc(db, "users", userId);
+  
+      // --- Usage Check ---
+      setIsCheckingUsage(true);
+      try {
+        const userDocSnap = await getDoc(userDocRef);
+        let currentCount = 0;
+        let currentLevel = "free";
+  
+        if (userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          currentCount = data.aiUsageCount || 0;
+          currentLevel = data.accessLevel || "free";
+        } else {
+          console.log("User document doesn't exist, treating as free user with 0 count.");
+        }
+  
+        console.log(`User: ${userId}, Access Level: ${currentLevel}, Usage Count: ${currentCount}`);
+  
+        const freeLimit = 15;
+  
+        if (currentLevel === "paid" || (currentLevel === "free" && currentCount < freeLimit)) {
+          // Proceed with file processing
+          console.log("Usage check passed. Processing file.");
+        } else {
+          console.log("Free user limit reached.");
+          setShowUpgradeAlert(true);
+          setIsCheckingUsage(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking user usage:", error);
+        setAiError("Could not verify usage limits. Please try again.");
+        setIsCheckingUsage(false);
+        return;
+      } finally {
+        if (!showUpgradeAlert) setIsCheckingUsage(false);
+      }
+  
+      // --- File Processing ---
+      try {
         setAiError(null);
-        setIsAiLoading(true); // Start AI processing overlay
-
-        // --- Corrected Upload Path ---
-        const filePath = `ai_uploads/${user.uid}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`; // <-- USE BACKTICKS HERE
-
+        setIsAiLoading(true);
+  
+        const filePath = `ai_uploads/${user.uid}/${Date.now()}_${file.name.replace(
+          /\s+/g,
+          "_"
+        )}`;
         console.log("Attempting upload for user UID:", user.uid);
-        console.log("Target Storage Path:", filePath); // Verify this log looks correct now
-
-        // --- Upload Logic ---
+        console.log("Target Storage Path:", filePath);
+  
         const storageInstance = getStorage();
         const storageRefInstance = ref(storageInstance, filePath);
-        const metadata = { contentType: file.type, customMetadata: { 'uploadedBy': user.uid, 'purpose': 'ai_processing' } };
+        const metadata = {
+          contentType: file.type,
+          customMetadata: { uploadedBy: user.uid, purpose: "ai_processing" },
+        };
         const uploadTask = uploadBytesResumable(storageRefInstance, file, metadata);
-        await uploadTask; // Wait for upload to complete
+        await uploadTask;
         const firebaseImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-        // --- End Upload Logic ---
-
-        // --- API Call Logic ---
+  
         const formData = new FormData();
-        formData.append('image', file); // Sending the raw file
-        const minLoadingTimePromise = new Promise(resolve => setTimeout(resolve, 2000)); // Keep min loading time
-        const fetchPromise = fetch('/api/analyzeimage', { method: 'POST', body: formData });
-
-        // Wait for both API and minimum time
+        formData.append("image", file);
+        const minLoadingTimePromise = new Promise((resolve) => setTimeout(resolve, 2000));
+        const fetchPromise = fetch("/api/analyzeimage", {
+          method: "POST",
+          body: formData,
+        });
+  
         const [response] = await Promise.all([fetchPromise, minLoadingTimePromise]);
         const result = await response.json();
-
+  
         if (!response.ok) {
-            // Attempt to delete the uploaded image if API call failed
-            try {
-                await deleteObject(storageRefInstance);
-                console.log("Deleted uploaded image due to API failure:", filePath);
-            } catch (deleteError) {
-                console.error("Failed to delete image after API error:", deleteError);
-            }
-            throw new Error(result.error || `API Error: ${response.statusText}`);
+          try {
+            await deleteObject(storageRefInstance);
+            console.log("Deleted uploaded image due to API failure:", filePath);
+          } catch (deleteError) {
+            console.error("Failed to delete image after API error:", deleteError);
+          }
+          throw new Error(result.error || `API Error: ${response.statusText}`);
         }
-        // --- End API Call Logic ---
-
-        // --- Increment Firestore Count on Success (IF USER WAS FREE) ---
-        // Re-fetch the level just before incrementing to be safe
+  
         const userDocSnap = await getDoc(userDocRef);
-        const currentLevel = userDocSnap.exists() ? (userDocSnap.data().accessLevel || "free") : "free";
-
+        const currentLevel = userDocSnap.exists()
+          ? userDocSnap.data().accessLevel || "free"
+          : "free";
+  
         if (currentLevel === "free") {
-            try {
-                 await updateDoc(userDocRef, {
-                     aiUsageCount: increment(1)
-                 });
-                 console.log("Incremented free usage count after successful analysis.");
-            } catch(incrementError) {
-                 console.error("Failed to increment usage count, but analysis succeeded:", incrementError);
-                 // Decide how critical this is - maybe log it? The user got the analysis.
-            }
+          try {
+            await updateDoc(userDocRef, {
+              aiUsageCount: increment(1),
+            });
+            console.log("Incremented free usage count after successful analysis.");
+          } catch (incrementError) {
+            console.error("Failed to increment usage count, but analysis succeeded:", incrementError);
+          }
         }
-        // --- End Increment Logic ---
-
-        // --- Corrected Navigation Logic ---
-        const { title = `Item ${file.name.split('.')[0]}`, description = "No description provided." } = result;
-        const queryParams = new URLSearchParams({ title: title, description: description, preview: firebaseImageUrl }).toString();
-
-        setIsAiLoading(false); // Stop AI overlay *before* navigating
-
-        // Ensure this uses BACKTICKS and correct variables
-        router.push(`/${user.uid}/dashboard/add-item?${queryParams}`); // <-- USE BACKTICKS HERE
-        // --- End Navigation Logic ---
-
-    } catch (error) { // Catch errors from upload, API call, or increment check
+  
+        const { title = `Item ${file.name.split(".")[0]}`, description = "No description provided." } =
+          result;
+        const queryParams = new URLSearchParams({
+          title,
+          description,
+          preview: firebaseImageUrl,
+        }).toString();
+  
+        setIsAiLoading(false);
+        router.push(`/${user.uid}/dashboard/add-item?${queryParams}`);
+      } catch (error) {
         console.error("AI Generation or Upload failed:", error);
         setAiError(`Operation failed: ${error.message}`);
-        setIsAiLoading(false); // Stop overlay on error
-    }
-};
-
+        setIsAiLoading(false);
+      }
+    };
+  
     // --- Render Logic ---
-    if (loading) { return (<Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><CircularProgress size={60} /></Box>); }
-    if (!user) { return null; }
-     if (!isMobile) { return <DesktopWarning />; }
-
-    return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#F8F8F8', }}>
-            {isAiLoading && <LoadingOverlay />}
-            <Header user={user} onSignOut={handleSignOut} ref={headerRef} />
-            <input ref={aiFileInputRef} type="file" accept="image/*" onChange={handleAiFileSelected} style={{ display: 'none' }} aria-hidden="true" />
-            <Box component="main" sx={{ flexGrow: 1, width: '100%', opacity: isAiLoading ? 0.5 : 1 }}>
-                {/* Toggle Group */}
-                <Box sx={{ p: `${borderWidth}px`, background: gradientBorder, borderRadius: `${groupBorderRadius + borderWidth}px`, maxWidth: `${groupMaxWidth}px`, width: 'calc(100% - 32px)', margin: { xs: '16px auto', sm: '24px auto' }, boxSizing: 'border-box' }}>
-                    <ToggleButtonGroup value={activeView} exclusive onChange={handleViewChange} aria-label="Dashboard view selection" fullWidth sx={{ display: 'flex', borderRadius: `${groupBorderRadius}px`, overflow: 'hidden', bgcolor: 'background.paper' }}>
-                        <ToggleButton value="inventory" aria-label="inventory" disableRipple sx={{ flexGrow: 1, height: `${groupHeight}px`, textTransform: 'none', fontFamily: fontFamily, fontSize: baseFontSize, fontWeight: baseFontWeight, lineHeight: '100%', letterSpacing: '0%', border: 'none', borderRadius: 0, color: activeView === 'inventory' ? activeTextColorCalculated : inactiveTextColor, bgcolor: activeView === 'inventory' ? activeBgColor : 'transparent', '&:hover': { bgcolor: activeView !== 'inventory' ? theme.palette.action.hover : activeBgColor }, '&.Mui-selected': { color: activeTextColorCalculated, bgcolor: activeBgColor, '&:hover': { bgcolor: activeBgColor } } }}> Inventory </ToggleButton>
-                        <ToggleButton value="salesOrder" aria-label="sales order" disableRipple sx={{ flexGrow: 1, height: `${groupHeight}px`, textTransform: 'none', fontFamily: fontFamily, fontSize: baseFontSize, fontWeight: baseFontWeight, lineHeight: '100%', letterSpacing: '0%', border: 'none', borderRadius: 0, color: activeView === 'salesOrder' ? activeTextColorCalculated : inactiveTextColor, bgcolor: activeView === 'salesOrder' ? activeBgColor : 'transparent', '&:hover': { bgcolor: activeView !== 'salesOrder' ? theme.palette.action.hover : activeBgColor }, '&.Mui-selected': { color: activeTextColorCalculated, bgcolor: activeBgColor, '&:hover': { bgcolor: activeBgColor } } }}> Sales/Order </ToggleButton>
-                    </ToggleButtonGroup>
-                </Box>
-                {isCheckingUsage && <LoadingOverlay text="Checking usage limits..." />}
-
-                {/* Upgrade Alert Dialog */}
-                <Dialog
-                    open={showUpgradeAlert}
-                    onClose={() => setShowUpgradeAlert(false)}
-                    aria-labelledby="upgrade-dialog-title"
-                    aria-describedby="upgrade-dialog-description"
-                    fullWidth
-                    maxWidth="xs"
-                    BackdropProps={{
-                        style: {
-                            backgroundColor: 'rgba(34, 34, 34,)', // Dark overlay, matches app aesthetic
-                        },
-                    }}
-                    TransitionProps={{ timeout: 0 }} // Instant appearance, no fade
-                    sx={{
-                        '& .MuiDialog-paper': {
-                            borderRadius: '12px',
-                            maxWidth: 'min(90vw, 400px)',
-                            margin: '16px',
-                            fontFamily: 'Manrope',
-                            color: 'rgba(34, 34, 34, 1)',
-                            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
-                        },
-                    }}
-                >
-                    <DialogTitle
-                        id="upgrade-dialog-title"
-                        sx={{
-                            fontFamily: 'Manrope',
-                            fontSize: '18px',
-                            fontWeight: 700,
-                            color: 'rgba(34, 34, 34, 1)',
-                            padding: '16px 24px',
-                            textAlign: 'center',
-                        }}
-                    >
-                        Upgrade for Unlimited Access
-                    </DialogTitle>
-                    <DialogContent sx={{ padding: '0 24px 16px' }}>
-                        <DialogContentText
-                            id="upgrade-dialog-description"
-                            sx={{
-                                fontFamily: 'Manrope',
-                                fontSize: '14px',
-                                fontWeight: 400,
-                                color: 'rgba(34, 34, 34, 1)',
-                                textAlign: 'center',
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            You’ve reached the free limit of 5 image analyses. Subscribe for ₦5,000 to unlock unlimited AI image analysis with Gemini.
-                        </DialogContentText>
-                    </DialogContent>
-                    <DialogActions
-                        sx={{
-                            padding: '8px 24px 16px',
-                            display: 'flex',
-                            gap: 2,
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Button
-                            onClick={() => setShowUpgradeAlert(false)}
-                            sx={{
-                                fontFamily: 'Manrope',
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: 'rgba(34, 34, 34, 1)',
-                                textTransform: 'none',
-                                padding: '8px 16px',
-                                borderRadius: '8px',
-                                minWidth: '100px',
-                                backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                                },
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                setShowUpgradeAlert(false);
-                                router.push(`/${user?.uid}/dashboard/upgrade`);
-                            }}
-                            sx={{
-                                fontFamily: 'Manrope',
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: '#fff',
-                                textTransform: 'none',
-                                padding: '8px 16px',
-                                borderRadius: '8px',
-                                minWidth: '100px',
-                                backgroundColor: 'rgba(34, 34, 34, 1)',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(34, 34, 34, 0.9)',
-                                },
-                            }}
-                            autoFocus
-                        >
-                            Upgrade
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-                {/* Error Display */}
-                <Snackbar open={!!aiError} autoHideDuration={6000} onClose={() => setAiError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} >
-                    <Alert onClose={() => setAiError(null)} severity="error" sx={{ width: '100%' }}> {aiError} </Alert>
-                </Snackbar>
-                {/* Dynamic Content */}
-                <Box sx={{ p: { xs: 2, sm: 3 }, pb: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    {activeView === 'inventory' && <InventoryContent user={user} onGenerateWithAiClick={handleGenerateWithAiClick} />}
-                    {activeView === 'salesOrder' && <SalesOrderContent user={user} />}
-                </Box>
-            </Box>
+    if (loading) {
+      return (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+          <CircularProgress size={60} />
         </Box>
+      );
+    }
+    if (!user) {
+      return null;
+    }
+    if (!isMobile) {
+      return <DesktopWarning />;
+    }
+  
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh", bgcolor: "#F8F8F8" }}>
+        {isAiLoading && <LoadingOverlay />}
+        <Header user={user} onSignOut={handleSignOut} ref={headerRef} />
+        <input
+          id="ai-file-input"
+          ref={aiFileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAiFileSelected}
+          style={{ display: "none" }}
+          aria-hidden="true"
+        />
+        <Box component="main" sx={{ flexGrow: 1, width: "100%", opacity: isAiLoading ? 0.5 : 1 }}>
+          {/* Toggle Group */}
+          <Box
+            sx={{
+              p: `${borderWidth}px`,
+              background: gradientBorder,
+              borderRadius: `${groupBorderRadius + borderWidth}px`,
+              maxWidth: `${groupMaxWidth}px`,
+              width: "calc(100% - 32px)",
+              margin: { xs: "16px auto", sm: "24px auto" },
+              boxSizing: "border-box",
+            }}
+          >
+            <ToggleButtonGroup
+              value={activeView}
+              exclusive
+              onChange={handleViewChange}
+              aria-label="Dashboard view selection"
+              fullWidth
+              sx={{
+                display: "flex",
+                borderRadius: `${groupBorderRadius}px`,
+                overflow: "hidden",
+                bgcolor: "background.paper",
+              }}
+            >
+              <ToggleButton
+                value="inventory"
+                aria-label="inventory"
+                disableRipple
+                sx={{
+                  flexGrow: 1,
+                  height: `${groupHeight}px`,
+                  textTransform: "none",
+                  fontFamily: fontFamily,
+                  fontSize: baseFontSize,
+                  fontWeight: baseFontWeight,
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  border: "none",
+                  borderRadius: 0,
+                  color: activeView === "inventory" ? activeTextColorCalculated : inactiveTextColor,
+                  bgcolor: activeView === "inventory" ? activeBgColor : "transparent",
+                  "&:hover": {
+                    bgcolor: activeView !== "inventory" ? theme.palette.action.hover : activeBgColor,
+                  },
+                  "&.Mui-selected": {
+                    color: activeTextColorCalculated,
+                    bgcolor: activeBgColor,
+                    "&:hover": { bgcolor: activeBgColor },
+                  },
+                }}
+              >
+                Inventory
+              </ToggleButton>
+              <ToggleButton
+                value="salesOrder"
+                aria-label="sales order"
+                disableRipple
+                sx={{
+                  flexGrow: 1,
+                  height: `${groupHeight}px`,
+                  textTransform: "none",
+                  fontFamily: fontFamily,
+                  fontSize: baseFontSize,
+                  fontWeight: baseFontWeight,
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  border: "none",
+                  borderRadius: 0,
+                  color: activeView === "salesOrder" ? activeTextColorCalculated : inactiveTextColor,
+                  bgcolor: activeView === "salesOrder" ? activeBgColor : "transparent",
+                  "&:hover": {
+                    bgcolor: activeView !== "salesOrder" ? theme.palette.action.hover : activeBgColor,
+                  },
+                  "&.Mui-selected": {
+                    color: activeTextColorCalculated,
+                    bgcolor: activeBgColor,
+                    "&:hover": { bgcolor: activeBgColor },
+                  },
+                }}
+              >
+                Sales/Order
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          {isCheckingUsage && <LoadingOverlay text="Checking usage limits..." />}
+  
+          {/* Upgrade Alert Dialog */}
+          <Dialog
+            open={showUpgradeAlert}
+            onClose={() => setShowUpgradeAlert(false)}
+            aria-labelledby="upgrade-dialog-title"
+            aria-describedby="upgrade-dialog-description"
+            fullWidth
+            maxWidth="xs"
+            BackdropProps={{
+              style: {
+                backgroundColor: "rgba(34, 34, 34,)", // Dark overlay, matches app aesthetic
+              },
+            }}
+            TransitionProps={{ timeout: 0 }} // Instant appearance, no fade
+            sx={{
+              "& .MuiDialog-paper": {
+                borderRadius: "12px",
+                maxWidth: "min(90vw, 400px)",
+                margin: "16px",
+                fontFamily: "Manrope",
+                color: "rgba(34, 34, 34, 1)",
+                boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.1)",
+              },
+            }}
+          >
+            <DialogTitle
+              id="upgrade-dialog-title"
+              sx={{
+                fontFamily: "Manrope",
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "rgba(34, 34, 34, 1)",
+                padding: "16px 24px",
+                textAlign: "center",
+              }}
+            >
+              Upgrade for Unlimited Access
+            </DialogTitle>
+            <DialogContent sx={{ padding: "0 24px 16px" }}>
+              <DialogContentText
+                id="upgrade-dialog-description"
+                sx={{
+                  fontFamily: "Manrope",
+                  fontSize: "14px",
+                  fontWeight: 400,
+                  color: "rgba(34, 34, 34, 1)",
+                  textAlign: "center",
+                  lineHeight: 1.5,
+                }}
+              >
+                You’ve reached the free limit of 5 image analyses. Subscribe for ₦5,000 to unlock unlimited AI image analysis with Gemini.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions
+              sx={{
+                padding: "8px 24px 16px",
+                display: "flex",
+                gap: 2,
+                justifyContent: "center",
+              }}
+            >
+              <Button
+                onClick={() => setShowUpgradeAlert(false)}
+                sx={{
+                  fontFamily: "Manrope",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "rgba(34, 34, 34, 1)",
+                  textTransform: "none",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  minWidth: "100px",
+                  backgroundColor: "rgba(0, 0, 0, 0.05)",
+                  "&:hover": {
+                    backgroundColor: "rgba(0, 0, 0, 0.1)",
+                  },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowUpgradeAlert(false);
+                  router.push(`/${user?.uid}/dashboard/upgrade`);
+                }}
+                sx={{
+                  fontFamily: "Manrope",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#fff",
+                  textTransform: "none",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  minWidth: "100px",
+                  backgroundColor: "rgba(34, 34, 34, 1)",
+                  "&:hover": {
+                    backgroundColor: "rgba(34, 34, 34, 0.9)",
+                  },
+                }}
+                autoFocus
+              >
+                Upgrade
+              </Button>
+            </DialogActions>
+          </Dialog>
+          {/* Error Display */}
+          <Snackbar
+            open={!!aiError}
+            autoHideDuration={6000}
+            onClose={() => setAiError(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          >
+            <Alert onClose={() => setAiError(null)} severity="error" sx={{ width: "100%" }}>
+              {aiError}
+            </Alert>
+          </Snackbar>
+          {/* Dynamic Content */}
+          <Box sx={{ p: { xs: 2, sm: 3 }, pb: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {activeView === "inventory" && <InventoryContent user={user} />}
+            {activeView === "salesOrder" && <SalesOrderContent user={user} />}
+          </Box>
+        </Box>
+      </Box>
     );
-}
+  }
