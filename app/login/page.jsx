@@ -321,7 +321,7 @@ export default function AuthForm() {
             <Box
                 sx={{
                     width: "100%",    
-                    maxWidth: 298,         
+                    maxWidth: "298px",         
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
