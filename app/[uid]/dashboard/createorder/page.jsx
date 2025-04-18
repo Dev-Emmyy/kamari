@@ -1,283 +1,244 @@
-"use client"; // Keep client directive
-import { useState, useRef , useEffect} from 'react';
+"use client";
+import { useState, useEffect, useRef } from 'react';
 import {
-    Box,
-    Typography,
-    Button,
-    TextField,
-    Paper,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemAvatar,
-    Avatar,
-    IconButton,
-    Divider,
-    CircularProgress,
-    useTheme, 
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Skeleton
+    Box, Typography, Button, TextField, Paper, List, ListItem, ListItemText,
+    ListItemAvatar, Avatar, IconButton, Divider, CircularProgress, useTheme,
+    Dialog, DialogTitle, DialogContent, DialogActions, Skeleton
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
-import Header from '@/app/components/Header'; // Assuming this path is correct
-
-// --- Firestore Imports (Needed for saving order) ---
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../../lib/firebase"; // Adjust path as needed for your firebase config
-
-// --- Next Router (If needed for navigation after order creation) ---
+import Header from '@/app/components/Header';
 import { useRouter } from 'next/navigation';
+import { db, auth } from '../../../../lib/firebase';
+import { collection, query, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import Image from "next/image";
 
-// --- Firebase Auth (If sign out is really needed HERE, but unlikely) ---
-// import { signOut } from 'firebase/auth';
-// import { auth } from '../../../lib/firebase';
-
-
-// --- Helper: Currency Formatting (NGN - Naira) ---
+// Currency formatting helper
 function formatCurrency(amount) {
-    if (typeof amount !== 'number' || isNaN(amount)) { return "₦0"; }
+    if (typeof amount !== 'number' || isNaN(amount)) return "₦0";
     const formatter = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return formatter.format(amount);
-};
+}
 
-
-// --- Main Create Order Form Component ---
-// Assuming this component receives user via props from a page where auth is checked
-export default function CreateOrderForm({ user }) { // Receive user as prop
+export default function CreateOrderForm() {
     const theme = useTheme();
-    const router = useRouter(); // Initialize router if needed for navigation
-    const headerRef = useRef(null); // Keep if used by Header
+    const router = useRouter();
+    const headerRef = useRef(null);
 
-    // --- State ---
+    // State
+    const [user, setUser] = useState(null); // Store authenticated user
+    const [authLoading, setAuthLoading] = useState(true); // Track auth initialization
+    const [authError, setAuthError] = useState(null); // Track auth errors
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitMessage, setSubmitMessage] = useState('');
     const [submitError, setSubmitError] = useState(false);
-
-    // *** State for Product Selection Modal ***
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [inventoryItems, setInventoryItems] = useState([]);
     const [isLoadingInventory, setIsLoadingInventory] = useState(false);
     const [errorInventory, setErrorInventory] = useState(null);
 
-
-    // --- Fetch Inventory Items (for the modal) ---
+    // Set up auth state listener
     useEffect(() => {
-        // --- WAIT for user prop ---
-        // If user or user.uid is not yet available, do nothing this time.
-        // The effect will re-run when the 'user' prop changes.
-        if (!user?.uid) {
-            console.log("Inventory fetch waiting for user prop...");
-            // Don't set an error here, just wait. Keep loading true if it wasn't set false yet.
-            // If inventoryItems is empty, the modal will show "loading" or "empty" correctly.
-            // If loading was already true, let it remain true.
-             if (!isLoadingInventory && inventoryItems.length === 0) {
-                 setIsLoadingInventory(true); // Ensure loading is shown while waiting
-             }
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            console.log("[Auth State] User state changed:", currentUser ? currentUser.uid : null);
+            setUser(currentUser);
+            setAuthLoading(false);
+            if (!currentUser) {
+                setAuthError("Please sign in to create an order.");
+            } else {
+                setAuthError(null);
+            }
+        }, (error) => {
+            console.error("[Auth State] Error:", error);
+            setAuthLoading(false);
+            setAuthError(error.message);
+            setUser(null);
+        });
+
+        return () => unsubscribe(); // Clean up listener on unmount
+    }, []);
+
+    // Fetch inventory items when user is authenticated
+    useEffect(() => {
+        if (authLoading) {
+            console.log("[Inventory Fetch Effect] Waiting for auth state...");
+            setIsLoadingInventory(true);
             return;
         }
 
-        // --- User is available, proceed with fetching ---
-        setIsLoadingInventory(true);
-        setErrorInventory(null);
-        console.log("Fetching inventory for user:", user.uid);
-
-        const itemsCollectionRef = collection(db, 'users', user.uid, 'items');
-        const q = query(itemsCollectionRef, orderBy('createdAt', 'desc'));
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const itemsData = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                name: doc.data().title || 'Untitled Item',
-                price: doc.data().sellingPrice || 0,
-                imageUrl: doc.data().imageUrl || null
-            }));
-            console.log("Fetched Inventory:", itemsData);
-            setInventoryItems(itemsData);
-            setIsLoadingInventory(false); // Set loading false AFTER data is processed
-        }, (error) => {
-            console.error("Error fetching inventory for modal:", error);
-            setErrorInventory(`Failed to load inventory: ${error.message}`);
+        if (!user?.uid) {
+            console.log("[Inventory Fetch Effect] No user authenticated.");
             setIsLoadingInventory(false);
-        });
+            setErrorInventory("Please sign in to view inventory.");
+            setInventoryItems([]);
+            return;
+        }
 
-        return () => unsubscribe();
+        const fetchInventoryData = async () => {
+            setIsLoadingInventory(true);
+            setErrorInventory(null);
+            console.log("[Inventory Fetch] Fetching for user:", user.uid);
 
-    }, [user]); // Dependency array MUST include user
+            try {
+                const itemsCollectionRef = collection(db, 'users', user.uid, 'items');
+                const q = query(itemsCollectionRef, orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                console.log(`[Inventory Fetch] Found ${querySnapshot.size} documents.`);
 
+                const itemsData = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().title || 'Untitled Item',
+                    price: doc.data().sellingPrice || 0,
+                    imageUrl: doc.data().imageUrl || null,
+                }));
+
+                console.log("[Inventory Fetch] Fetched items:", itemsData);
+                setInventoryItems(itemsData);
+                setErrorInventory(null);
+            } catch (error) {
+                console.error("[Inventory Fetch] Firestore error:", error);
+                setErrorInventory(`Failed to load inventory: ${error.message}`);
+                setInventoryItems([]);
+            } finally {
+                setIsLoadingInventory(false);
+            }
+        };
+
+        fetchInventoryData();
+    }, [user, authLoading]);
+
+    // Handlers
     const handleAddProduct = () => {
-        setIsProductModalOpen(true); // Open the modal
+        console.log("[Add Product] Opening product modal");
+        setIsProductModalOpen(true);
     };
 
-    // *** Handler for closing the modal ***
     const handleCloseProductModal = () => {
         setIsProductModalOpen(false);
     };
 
-    // --- BEGIN MISSING HANDLER DEFINITIONS ---
-
     const handleAddFromContacts = async () => {
-        // --- Check for Contact Picker API support ---
-        const isSupported = ('select' in navigator.contacts);
-    
+        console.log("[AddFromContacts] Checking Contact Picker API support...");
+        const isSupported = 'contacts' in navigator && 'select' in navigator.contacts;
         if (!isSupported) {
-            console.warn("Contact Picker API is not supported in this browser.");
-            alert("Sorry, selecting contacts directly is not supported by your browser. Please enter the details manually.");
+            console.log("[AddFromContacts] Contact Picker API not supported.");
+            alert("Contact Picker API is not supported on this browser or device. Please enter details manually.");
             return;
         }
     
-        // --- Properties you want to retrieve ---
-        // Options: 'name', 'email', 'tel', 'address', 'icon'
+        // Check for HTTPS
+        if (window.location.protocol !== 'https:') {
+            console.log("[AddFromContacts] HTTPS required for Contact Picker API.");
+            alert("Contact Picker API requires HTTPS. Please test on a deployed site or enable HTTPS locally.");
+            return;
+        }
+    
         const properties = ['name', 'tel'];
-        // --- Options ---
-        // multiple: true if you want to allow selecting multiple contacts
         const options = { multiple: false };
     
         try {
-            console.log("Opening Contact Picker...");
-            // --- Call the Contact Picker API ---
-            // This opens a native UI controlled by the browser/OS
+            console.log("[AddFromContacts] Requesting contacts...");
             const selectedContacts = await navigator.contacts.select(properties, options);
+            console.log("[AddFromContacts] Selected contacts:", selectedContacts);
     
-            // --- Process the result ---
             if (!selectedContacts || selectedContacts.length === 0) {
-                console.log("Contact Picker: No contact selected or selection cancelled.");
-                return; // User didn't select anything
+                console.log("[AddFromContacts] No contacts selected.");
+                alert("No contact selected. Please try again or enter details manually.");
+                return;
             }
     
-            // Since options.multiple = false, we expect only one contact
             const contact = selectedContacts[0];
-            console.log("Contact selected:", contact);
+            const name = contact.name?.join(' ') || '';
+            const phone = contact.tel?.[0] || '';
+            console.log("[AddFromContacts] Parsed contact:", { name, phone });
     
-            // Extract data and update state (handle cases where data might be missing)
-            let name = '';
-            if (contact.name && contact.name.length > 0) {
-                // .name is an array of strings (e.g., ["Given", "Family"])
-                name = contact.name.join(' ');
+            if (!name && !phone) {
+                console.log("[AddFromContacts] Contact has no name or phone.");
+                alert("Selected contact has no name or phone number. Please select another contact.");
+                return;
             }
     
-            let phone = '';
-            if (contact.tel && contact.tel.length > 0) {
-                // .tel is an array of phone numbers
-                phone = contact.tel[0]; // Get the first phone number
-            }
-    
-            // Update your form's state variables
-            if (name) setCustomerName(name);
-            if (phone) setCustomerPhone(phone);
-    
-            console.log(`Updated form with: Name=${name}, Phone=${phone}`);
-    
+            setCustomerName(name);
+            setCustomerPhone(phone);
+            console.log("[AddFromContacts] Updated form with:", { customerName: name, customerPhone: phone });
         } catch (error) {
-            // Handle potential errors
-            console.error("Error using Contact Picker API:", error);
-            if (error.name === 'NotAllowedError') {
-                 alert("Permission to access contacts was denied or dismissed. Please grant permission if you want to use this feature.");
-            } else if (error.name === "NotFoundError") {
-                 alert("No contacts with the requested properties (name, phone) were found on the device.");
-            }
-            else {
-                alert(`An error occurred while trying to access contacts: ${error.message}`);
-            }
+            console.error("[AddFromContacts] Contact Picker error:", error);
+            alert(`Failed to fetch contacts: ${error.message}. Please try again or enter details manually.`);
         }
     };
-    
+
     const handleProductSelect = (productToAdd) => {
-        // Check if product is already selected
         if (selectedProducts.some(p => p.id === productToAdd.id)) {
-            alert(`${productToAdd.name} is already added to the order.`);
+            alert(`${productToAdd.name} is already added.`);
             return;
         }
-        // Add the selected product to the order list
-        setSelectedProducts(prevProducts => [...prevProducts, {
-            // Add only necessary fields from inventory item to order item
+        setSelectedProducts(prev => [...prev, {
             id: productToAdd.id,
             name: productToAdd.name,
             price: productToAdd.price,
             imageUrl: productToAdd.imageUrl,
-            quantity: 1 // Default quantity, can be adjusted later if needed
+            quantity: 1,
         }]);
-         // Optionally close modal after adding one item
-        // handleCloseProductModal();
     };
 
     const handleRemoveProduct = (productId) => {
-        setSelectedProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+        setSelectedProducts(prev => prev.filter(p => p.id !== productId));
     };
 
     const handleSubmitOrder = async () => {
         setSubmitMessage('');
         setSubmitError(false);
 
-        // Basic Validation
         if (!customerName.trim() || !customerPhone.trim()) {
             setSubmitMessage('Please enter customer Name and Phone Number.');
             setSubmitError(true);
             return;
         }
         if (selectedProducts.length === 0) {
-            setSubmitMessage('Please add at least one product to the order.');
+            setSubmitMessage('Please add at least one product.');
             setSubmitError(true);
             return;
         }
-        // Ensure user is available before submitting
-        if (!user || !user.uid) {
-             setSubmitMessage('Error: User not logged in.');
-             setSubmitError(true);
-             return;
+        if (!user?.uid) {
+            setSubmitMessage('Error: User not authenticated.');
+            setSubmitError(true);
+            return;
         }
 
-
         setIsSubmitting(true);
-        console.log("Submitting Order to Firestore...");
-
         try {
-            // Prepare data for Firestore
             const orderData = {
                 customerName: customerName.trim(),
                 customerPhone: customerPhone.trim(),
                 products: selectedProducts.map(p => ({
-                     id: p.id,
-                     name: p.name,
-                     price: p.price,
-                     quantity: 1, // Add quantity logic if needed
-                     imageUrl: p.imageUrl || null
-                 })),
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    quantity: p.quantity,
+                    imageUrl: p.imageUrl || null,
+                })),
                 totalAmount: selectedProducts.reduce((sum, p) => sum + p.price, 0),
                 createdAt: serverTimestamp(),
                 paymentStatus: 'unpaid',
                 shippingStatus: 'unshipped',
-                userId: user.uid // Link order to user
+                userId: user.uid,
             };
 
             const ordersCollectionRef = collection(db, 'users', user.uid, 'orders');
-            const docRef = await addDoc(ordersCollectionRef, orderData);
-
-            console.log("Order created with ID: ", docRef.id);
+            await addDoc(ordersCollectionRef, orderData);
             setSubmitMessage('Order created successfully!');
             setSubmitError(false);
 
-            // Clear the form
             setCustomerName('');
             setCustomerPhone('');
             setSelectedProducts([]);
-
-            // Optional: Navigate back after a short delay
-            // setTimeout(() => {
-            //     router.push(`/${user.uid}/dashboard`); // Go back to dashboard
-            // }, 1000);
-
-
-        } catch (e) {
-            console.error("Error adding order document: ", e);
+        } catch (error) {
+            console.error("Error creating order:", error);
             setSubmitMessage('Failed to create order. Please try again.');
             setSubmitError(true);
         } finally {
@@ -285,163 +246,161 @@ export default function CreateOrderForm({ user }) { // Receive user as prop
         }
     };
 
-    // Remove handleSignOut from here - it should be handled by the Header component itself
-    // const handleSignOut = async () => { ... };
+    // Render
+    if (authLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+    if (authError) return <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>Auth Error: {authError}</Typography>;
+    if (!user) return <Typography sx={{ textAlign: 'center', mt: 4 }}>Please sign in to create an order.</Typography>;
 
-    // --- END MISSING HANDLER DEFINITIONS ---
-
-
-    // --- Render ---
     return (
-        <Box
-            sx={{ /* Main container styles */
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'stretch',
-                p: 2, // Padding around the form
-                maxWidth: '450px', // Max width for the form container
-                margin: '20px auto', // Center the form
-                bgcolor: theme.palette.background.default, // Use theme background
-                borderRadius: '8px',
-                gap: 2, // Spacing between elements
-            }}
-        >
-            {/* Pass user and potentially a handleSignOut from parent if Header needs it */}
-            <Header user={user} /* onSignOut={handleSignOut} ??? */ ref={headerRef} />
-
-            {/* Form Content Box */}
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 3
-                }}
-            >
-                {/* --- Title --- */}
-                <Typography
-                     variant="h5" component="h1"
-                     sx={{
-                         width: '100%', textAlign: 'left', // Align left
-                         fontWeight: 700, // Use numeric or keyword
-                         mb: 1, // Adjust margin
-                         color: "rgba(34, 34, 34, 1)", fontSize: "20px", fontFamily: "Manrope"
-                     }}>
-                    Create Order
-                </Typography>
-
-                {/* --- Customer Section --- */}
-                <Button
-                    fullWidth variant="contained" startIcon={<AddCircleOutlineIcon />}
-                    onClick={handleAddFromContacts} // Error occurs here if definition missing
-                    sx={{ /* Button styles */
-                        bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none',
-                        fontFamily: "Manrope", fontWeight: 400, // Corrected fontWeight
-                        borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' }
-                    }}
-                >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', p: 2, maxWidth: '450px', margin: '20px auto', bgcolor: '#F8F8F8', borderRadius: '8px', gap: 2 }}>
+            <Header user={user} ref={headerRef} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(34, 34, 34, 1)", fontSize: "20px", fontFamily: "Manrope" }}>Create Order</Typography>
+                <Button fullWidth variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={handleAddFromContacts} sx={{ bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', fontFamily: "Manrope", fontWeight: 400, borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' } }}>
                     Add Customer from Contacts
                 </Button>
-
-                <Divider sx={{ width: '80%', my: 1, fontSize: '0.9rem', color: 'text.secondary' }} > OR </Divider>
-
-                <TextField
-                    fullWidth label="Name" variant="outlined" value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    sx={{ /* TextField styles */
-                       "& .MuiOutlinedInput-root": { borderRadius: "14px", "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" }, }, "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" }, "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
-                     }}
-                />
-                <TextField
-                    fullWidth label="Phone Number" variant="outlined" type="tel" value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    sx={{ /* TextField styles */
-                       "& .MuiOutlinedInput-root": { borderRadius: "14px", "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" }, }, "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" }, "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
-                     }}
-                />
-
-                {/* --- Product Section --- */}
-                {/* Align Add Products button to the left */}
+                <Divider sx={{ my: 2, color: "#5f6368", fontFamily: "Manrope, sans-serif", fontWeight: 800, fontSize: 14, width: '100%' }} >
+                    OR
+                </Divider>
+                <TextField fullWidth label="Name" variant="outlined" value={customerName} onChange={(e) => setCustomerName(e.target.value)} sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" }, "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" } }, "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" }, "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" } }} />
+                <TextField fullWidth label="Phone Number" variant="outlined" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgb(226, 185, 21)" }, "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" } }, "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" }, "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" } }} />
                 <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-start' }}>
-                   <Button
-                       // fullWidth // Remove fullWidth if aligning left
-                       variant="contained" startIcon={<AddCircleOutlineIcon />}
-                       onClick={handleAddProduct}
-                       sx={{ /* Button styles */
-                           width: "186px", // Keep specific width if desired
-                           bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none',
-                           fontFamily: "Manrope", fontWeight: 400, // Corrected fontWeight
-                           borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' },
-                           // mb: 2, mt: 2 // Keep margins if needed
-                       }}
-                   >
-                       Add Products
-                   </Button>
+                    <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={handleAddProduct} sx={{ width: "186px", bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', fontFamily: "Manrope", fontWeight: 400, borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' } }}>
+                        Add Products
+                    </Button>
                 </Box>
-
-
-                {/* --- Selected Products List --- */}
                 {selectedProducts.length > 0 && (
-                   <List sx={{ width: '100%', bgcolor: 'transparent', p: 0 }}>
-                       {selectedProducts.map((product, index) => (
-                           <Paper key={product.id} elevation={1} sx={{ width: '100%', mb: index < selectedProducts.length - 1 ? 1.5 : 0, borderRadius: '8px', overflow: 'hidden' }}>
-                               <ListItem alignItems="center" secondaryAction={ <IconButton edge="end" aria-label="remove product" onClick={() => handleRemoveProduct(product.id)} title="Remove Product"> <DeleteIcon /> </IconButton> } sx={{ py: 1.5, px: 2 }} >
-                                   <ListItemAvatar sx={{ mr: 2 }}> <Avatar variant="rounded" src={product.imageUrl} alt={product.name} sx={{ width: 56, height: 56, bgcolor: 'grey.200' }} /> </ListItemAvatar>
-                                   <ListItemText primary={ <Typography variant="body1" sx={{ fontWeight: 500 }}> {product.name} </Typography> } secondary={ <> <Typography component="span" variant="body2" color="text.secondary"> {product.dateAdded} </Typography> <Typography component="span" variant="body2" sx={{ display: 'block', fontWeight: 'bold', color: 'text.primary', mt: 0.5 }}> {formatCurrency(product.price)} </Typography> </> } />
-                               </ListItem>
-                           </Paper>
-                       ))}
-                   </List>
+                    <List sx={{ width: '100%', bgcolor: 'transparent', p: 0 }}>
+                        {selectedProducts.map((product, index) => (
+                            <Paper key={product.id} elevation={1} sx={{ width: '100%', mb: index < selectedProducts.length - 1 ? 1.5 : 0, borderRadius: '8px', overflow: 'hidden' }}>
+                                <ListItem alignItems="center" secondaryAction={<IconButton edge="end" onClick={() => handleRemoveProduct(product.id)} sx={{
+                                    width: "44px", // User specified width
+                                    height: "41px", // User specified height
+                                    minWidth: "44px", // Prevent MUI default min-width
+                                    bgcolor: 'rgba(216, 59, 59, 1)', // User specified red background
+                                    borderRadius: "7px", // User specified border-radius
+                                    p: 0, // Remove default padding to center icon precisely
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0, // Prevent shrinking in flex layout
+                                    '&:hover': {
+                                        bgcolor: 'rgba(187, 49, 49, 1)' // Darker red on hover (example)
+                                    }
+                                }}><Image src="/trash.png" width={20} height={20} alt="" style={{ filter: 'brightness(0) invert(1)' }}/></IconButton>} sx={{ py: 1.5, px: 2 }}>
+                                    <ListItemAvatar sx={{ mr: 2 }}><Avatar variant="rounded" src={product.imageUrl} alt={product.name} sx={{ width: 56, height: 56, bgcolor: 'grey.200' }} /></ListItemAvatar>
+                                    <ListItemText primary={<Typography variant="body1" sx={{ fontWeight: 500, fontFamily : "Manrope" }}>{product.name}</Typography>} secondary={<Typography component="span" variant="body2" sx={{ display: 'block', fontWeight: 'bold', color: 'text.primary', mt: 0.5, fontFamily : "Manrope" }}>{formatCurrency(product.price)}</Typography>} />
+                                </ListItem>
+                            </Paper>
+                        ))}
+                    </List>
                 )}
-                {selectedProducts.length === 0 && ( <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}> No products added yet. </Typography> )}
-
-
-                {/* --- Submit Button --- */}
-                <Button
-                    fullWidth variant="contained" onClick={handleSubmitOrder} disabled={isSubmitting} size="large"
-                    sx={{ /* Button styles */
-                       bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none',
-                       fontFamily: "Manrope", fontWeight: 400, // Corrected fontWeight
-                       borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' }
-                     }}
-                >
+                {selectedProducts.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>No products added yet.</Typography>}
+                <Button fullWidth variant="contained" onClick={handleSubmitOrder} disabled={isSubmitting} size="large" sx={{ bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', fontFamily: "Manrope", fontWeight: 400, borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' } }}>
                     {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Create Order'}
                 </Button>
-
-                {/* --- Submission Feedback --- */}
-                {submitMessage && ( <Typography color={submitError ? 'error' : 'success.main'} sx={{ mt: 2, textAlign: 'center' }}> {submitMessage} </Typography> )}
+                {submitMessage && <Typography color={submitError ? 'error' : 'success.main'} sx={{ mt: 2, textAlign: 'center' }}>{submitMessage}</Typography>}
             </Box>
-
+            <Dialog open={isProductModalOpen} onClose={handleCloseProductModal} fullWidth maxWidth="xs">
             <Dialog
                 open={isProductModalOpen}
                 onClose={handleCloseProductModal}
                 fullWidth
-                maxWidth="xs" // Adjust based on content
-                aria-labelledby="product-select-dialog-title"
+                maxWidth="xs"
+                sx={{
+                    '& .MuiDialog-paper': {
+                        borderRadius: '12px',
+                        maxWidth: '90%', // Ensure modal fits small screens
+                        margin: '16px',
+                        fontFamily: 'Manrope',
+                        color: 'rgba(34, 34, 34, 1)',
+                    },
+                }}
             >
-                <DialogTitle id="product-select-dialog-title">
-                    Select Products from Inventory
-                     <IconButton
+                <DialogTitle
+                    sx={{
+                        fontFamily: 'Manrope',
+                        fontSize: '18px',
+                        fontWeight: 700,
+                        color: 'rgba(34, 34, 34, 1)',
+                        padding: '16px',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    Select Products
+                    <IconButton
                         aria-label="close"
                         onClick={handleCloseProductModal}
-                        sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
+                        sx={{
+                            position: 'absolute',
+                            right: 8,
+                            top: 8,
+                            color: theme.palette.grey[500],
+                            padding: '8px',
+                            '& svg': {
+                                fontSize: '24px', // Larger for touch
+                            },
+                        }}
                     >
                         <CloseIcon />
                     </IconButton>
                 </DialogTitle>
-                <DialogContent dividers> {/* Add dividers for better spacing */}
+                <DialogContent
+                    dividers
+                    sx={{
+                        padding: '16px',
+                        fontFamily: 'Manrope',
+                        color: 'rgba(34, 34, 34, 1)',
+                    }}
+                >
+                    {console.log("[Modal State] Current state:", { isLoadingInventory, errorInventory, inventoryItems })}
                     {isLoadingInventory && (
-                         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                            <CircularProgress />
-                         </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
+                            <CircularProgress size={32} />
+                        </Box>
                     )}
                     {!isLoadingInventory && errorInventory && (
-                        <Typography color="error" sx={{ textAlign: 'center', p: 2 }}>{errorInventory}</Typography>
+                        <Typography
+                            sx={{
+                                fontFamily: 'Manrope',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                color: theme.palette.error.main,
+                                textAlign: 'center',
+                                padding: '16px',
+                            }}
+                        >
+                            {errorInventory}
+                        </Typography>
                     )}
-                     {!isLoadingInventory && !errorInventory && inventoryItems.length === 0 && (
-                        <Typography color="text.secondary" sx={{ textAlign: 'center', p: 2 }}>Your inventory is empty.</Typography>
+                    {!isLoadingInventory && !errorInventory && inventoryItems.length === 0 && (
+                        <Typography
+                            sx={{
+                                fontFamily: 'Manrope',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                color: 'rgba(34, 34, 34, 1)',
+                                textAlign: 'center',
+                                padding: '16px',
+                            }}
+                        >
+                            Your inventory is empty.
+                        </Typography>
                     )}
                     {!isLoadingInventory && !errorInventory && inventoryItems.length > 0 && (
-                        <List dense>
+                        <List
+                            dense
+                            sx={{
+                                padding: 0,
+                                '& .MuiListItem-root': {
+                                    padding: '8px 0',
+                                    alignItems: 'center',
+                                },
+                            }}
+                        >
                             {inventoryItems.map((item) => (
                                 <ListItem
                                     key={item.id}
@@ -450,30 +409,114 @@ export default function CreateOrderForm({ user }) { // Receive user as prop
                                             size="small"
                                             variant="outlined"
                                             onClick={() => handleProductSelect(item)}
-                                            // Disable if already selected? Optional
                                             disabled={selectedProducts.some(p => p.id === item.id)}
+                                            sx={{
+                                                fontFamily: 'Manrope',
+                                                fontSize: '14px',
+                                                fontWeight: 500,
+                                                color: 'rgba(34, 34, 34, 1)',
+                                                borderColor: 'rgba(34, 34, 34, 1)',
+                                                borderRadius: '8px',
+                                                padding: '4px 12px',
+                                                textTransform: 'none',
+                                                minWidth: '64px',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(34, 34, 34, 0.05)',
+                                                    borderColor: 'rgba(34, 34, 34, 1)',
+                                                },
+                                                '&.Mui-disabled': {
+                                                    color: 'rgba(34, 34, 34, 0.5)',
+                                                    borderColor: 'rgba(34, 34, 34, 0.5)',
+                                                    opacity: 0.6,
+                                                },
+                                            }}
                                         >
                                             Add
                                         </Button>
                                     }
+                                    sx={{
+                                        borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+                                        '&:last-child': {
+                                            borderBottom: 'none',
+                                        },
+                                    }}
                                 >
                                     <ListItemAvatar>
-                                        <Avatar variant="rounded" src={item.imageUrl} sx={{ bgcolor: 'grey.200' }}/>
+                                        <Avatar
+                                            variant="rounded"
+                                            src={item.imageUrl}
+                                            sx={{
+                                                width: 40,
+                                                height: 40,
+                                                bgcolor: 'grey.200',
+                                                marginRight: '12px',
+                                            }}
+                                        />
                                     </ListItemAvatar>
                                     <ListItemText
-                                        primary={item.name}
-                                        secondary={formatCurrency(item.price)}
+                                        primary={
+                                            <Typography
+                                                sx={{
+                                                    fontFamily: 'Manrope',
+                                                    fontSize: '16px',
+                                                    fontWeight: 500,
+                                                    color: 'rgba(34, 34, 34, 1)',
+                                                    maxWidth: '100px',
+                                                    textOverflow: 'ellipsis',
+                                                    overflow: 'hidden',
+                                                    whiteSpace: 'nowrap',
+                                                }}
+                                            >
+                                                {item.name}
+                                            </Typography>
+                                        }
+                                        secondary={
+                                            <Typography
+                                                sx={{
+                                                    fontFamily: 'Manrope',
+                                                    fontSize: '14px',
+                                                    fontWeight: 400,
+                                                    color: 'rgba(34, 34, 34, 1)',
+                                                }}
+                                            >
+                                                {formatCurrency(item.price)}
+                                            </Typography>
+                                        }
                                     />
                                 </ListItem>
                             ))}
                         </List>
                     )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseProductModal}>Done</Button>
+                <DialogActions
+                    sx={{
+                        padding: '8px 16px',
+                        fontFamily: 'Manrope',
+                    }}
+                >
+                    <Button
+                        onClick={handleCloseProductModal}
+                        fullWidth
+                        variant="contained"
+                        sx={{
+                            fontFamily: 'Manrope',
+                            fontSize: '16px',
+                            fontWeight: 500,
+                            color: '#fff',
+                            backgroundColor: 'rgba(34, 34, 34, 1)',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            textTransform: 'none',
+                            '&:hover': {
+                                backgroundColor: 'rgba(34, 34, 34, 0.9)',
+                            },
+                        }}
+                    >
+                        Done
+                    </Button>
                 </DialogActions>
             </Dialog>
-
+            </Dialog>
         </Box>
     );
 }

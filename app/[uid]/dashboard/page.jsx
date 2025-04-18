@@ -13,9 +13,8 @@ import {
     Box, useTheme, CircularProgress, Typography, ToggleButton, ToggleButtonGroup,
     TextField, Button, InputAdornment, IconButton, Paper, Skeleton, useMediaQuery,
     Snackbar, Alert, Divider,
-    Collapse // Keep Collapse for expansion
+    Collapse,  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle 
 } from "@mui/material";
-
 
 // --- Icon Imports ---
 import {
@@ -34,7 +33,7 @@ import {
 // --- Firebase Imports ---
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { getStorage, ref, deleteObject,uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, query, orderBy, onSnapshot, getDoc, doc, updateDoc, deleteDoc, increment } from "firebase/firestore";
 import { auth, db, storage } from "../../../lib/firebase"; // Keep config import
 
 // --- Date Formatting ---
@@ -47,9 +46,9 @@ import LoadingOverlay from "../../components/LoadingOverlay";
 // --- Style Constants ---
 // ... (Keep all relevant style constants - NO CHANGES HERE) ...
 const groupMaxWidth = 347.31; const groupHeight = 51.40; const groupBorderRadius = 13.89; const borderWidth = 0.5; const gradientBorder = 'linear-gradient(90deg, rgba(223, 29, 29, 0.69) 7.21%, rgba(102, 102, 102, 0.38) 27.88%, rgba(226, 185, 21, 0.55) 53.85%, rgba(226, 185, 21, 0.4) 94.71%)'; const activeBgColor = 'rgba(34, 34, 34, 1)'; const baseFontWeight = 400; const baseFontSize = '16.67px'; const fontFamily = 'Instrument Sans, sans-serif';
-const cardMaxWidth = 372.29; const cardHeight = 84.42; const cardBorderRadius = '8.32px'; const cardPaddingTB = '9.38px'; const cardPaddingLR = '10.32px'; const cardBg = 'rgba(255, 255, 255, 1)'; const cardGap = '9.38px'; const invTitleFontFamily = 'Manrope, sans-serif'; const invTitleFontWeight = 600; const invTitleFontSize = '14.27px'; const invTitleColor = 'rgba(99, 102, 110, 1)'; const invDateFontFamily = 'Manrope, sans-serif'; const invDateFontWeight = 600; const invDateFontSize = '12px'; const invDateColor = 'rgba(139, 139, 139, 1)'; const invStatusBoxHeight = '20.21px'; const invStatusBoxRadius = '11.89px'; const invStatusTextFontFamily = 'Manrope, sans-serif'; const invStatusTextFontWeight = 800; const invStatusTextFontSize = '6.55px'; const invAmountFontFamily = 'Manrope, sans-serif'; const invAmountFontWeight = 600; const invAmountFontSize = '12px'; const invAmountColor = 'rgba(30, 30, 30, 1)'; const invChevronSize = '25.32px'; const invChevronColor = 'rgba(51, 54, 63, 1)'; const invImageBoxSize = '84.42px'; const invImageBorderRadius = '8px'; const stockTextFontFamily = 'Manrope, sans-serif'; const stockTextFontWeight = 600; const stockTextFontSize = '14px'; const stockTextColor = 'rgba(30, 30, 30, 1)';
+const cardMaxWidth = 372.29; const cardHeight = 84.42; const cardBorderRadius = '8.32px'; const cardPaddingTB = '9.38px'; const cardPaddingLR = '10.32px'; const cardBg = 'rgba(255, 255, 255, 1)'; const cardGap = '9.38px'; const invTitleFontFamily = 'Manrope, sans-serif'; const invTitleFontWeight = 600; const invTitleFontSize = '14.27px'; const invTitleColor = 'rgba(99, 102, 110, 1)'; const invDateFontFamily = 'Manrope, sans-serif'; const invDateFontWeight = 600; const invDateFontSize = '12px'; const invDateColor = 'rgba(139, 139, 139, 1)'; const invStatusBoxHeight = '20.21px'; const invStatusBoxRadius = '11.89px'; const invStatusTextFontFamily = 'Manrope, sans-serif'; const invStatusTextFontWeight = 800; const invStatusTextFontSize = '10px'; const invAmountFontFamily = 'Manrope, sans-serif'; const invAmountFontWeight = 600; const invAmountFontSize = '12px'; const invAmountColor = 'rgba(30, 30, 30, 1)'; const invChevronSize = '25.32px'; const invChevronColor = 'rgba(51, 54, 63, 1)'; const invImageBoxSize = '84.42px'; const invImageBorderRadius = '8px'; const stockTextFontFamily = 'Manrope, sans-serif'; const stockTextFontWeight = 600; const stockTextFontSize = '14px'; const stockTextColor = 'rgba(30, 30, 30, 1)';
 const actionButtonHeight = '36px';
-const mainButtonStyles = { mt: 1, mb: 3, borderStyle: 'none', bgcolor: "rgba(34, 34, 34, 1)", padding: "10px 12px", textTransform: "none", borderRadius: "13px", boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)", fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", width: "369px", lineHeight: "normal", color: "#FFFFFF", height: "84px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, '&:hover': { bgcolor: "rgba(50, 50, 50, 1)", }, '&:disabled': { bgcolor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)', boxShadow: 'none', width: "100%" } };
+const mainButtonStyles = { mt: 1, mb: 3, borderStyle: 'none', bgcolor: "rgba(34, 34, 34, 1)", padding: "10px 12px", textTransform: "none", borderRadius: "13px", boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)", fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", maxWidth: "369px", lineHeight: "normal", color: "#FFFFFF", height: "84px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, '&:hover': { bgcolor: "rgba(50, 50, 50, 1)", }, '&:disabled': { bgcolor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)', boxShadow: 'none', width: "100%" } };
 
 
 // --- Helper Functions ---
@@ -371,10 +370,10 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
     const handleNavigateToAddItemManual = () => { if (user?.uid) router.push(`/${user.uid}/dashboard/add-item-manual`); else console.error("Cannot navigate: User UID missing."); };
 
     return (
-        <Box>
+        <Box sx={{display: 'flex', flexDirection : "column" ,justifyContent: 'center', alignItems: 'center', mx: 'auto' , width: "100%"}}>
             {/* --- Two-Part Button (No changes) --- */}
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mx: 'auto' , width: "100%"}}>
-                 <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" }, width: 'calc(100% - 5px)', margin: { xs: '16px auto', sm: '24px auto' }, }} >
+                 <Box sx={{ ...mainButtonStyles, p: 0, cursor: 'default', justifyContent: 'center', '&:hover': { bgcolor: "rgba(34, 34, 34, 1)" },width: "100%", margin: { xs: '16px auto', sm: '24px auto' }, }} >
                     <Box onClick={onGenerateWithAiClick} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}><Image src="/capture.png" alt="Generate with AI Icon" width={61} height={61} priority style={{ flexShrink: 0 }} /><Typography sx={{ fontFamily: "Manrope", fontWeight: 600, color: "rgba(251, 102, 22, 1)", fontSize: "12px", width: "84px", textAlign: "flex-start", flexShrink: 0 }}> Generate item with AI </Typography></Box>
                     <Box sx={{ width: '2px', height: '45px', bgcolor: 'rgba(246, 246, 246, 0.5)',flexShrink: 0 }} />
                     <Box onClick={handleNavigateToAddItemManual} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 1, flex: 1, justifyContent: 'center', height: '100%' }}><Typography sx={{ fontFamily: "Manrope", fontWeight: 700, color: "rgba(246, 246, 246, 1)", fontSize: "12px", width: "96px", textAlign: "center", flexShrink: 0 }}> Create item without image </Typography></Box>
@@ -382,7 +381,7 @@ const InventoryContent = ({ user, onGenerateWithAiClick }) => {
             </Box>
 
             {/* Filter and Sort Row (No changes) */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, px: { xs: 0, sm: 1 }, maxWidth: `${cardMaxWidth}px`, mx: 'auto' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, width: '100%', maxWidth: '372.29px', px: { xs: 0, sm: 1 } }}>
                 <Button size="small" startIcon={<FilterListIcon />} onClick={handleFilter} sx={{ textTransform: 'none', color: 'text.secondary' }}>Filter</Button>
                 <Button size="small" startIcon={<SortIcon />} onClick={handleSort} sx={{ textTransform: 'none', color: 'text.secondary' }}>Sort</Button>
             </Box>
@@ -497,35 +496,55 @@ const SalesOrderContent = ({ user }) => {
         <Box sx={{width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
 
              {/* --- Sales Summary Section (Placeholder Data) --- */}
-             <Paper elevation={2} sx={{ p: 2, mb: 3, width: '100%', maxWidth: '372.29px', borderRadius: '12px' }}>
+             <Paper elevation={2} sx={{ py: 2, mb: 3, width: '100%', maxWidth: '369px', borderRadius: '12px', border: "none", boxShadow : "none", backgrounColor: "rgba(255, 255, 255, 1)" }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                     <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">Sales (Last 30 Days)</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>₦305,450</Typography>
+                        <Typography variant="caption" sx={{fontWeight : 400, fontFamily : "Manrope", color : "rgba(133, 133, 133, 1)", fontSize : "14px"}}>Sales (Last 30 Days)</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: '700', fontFamily : "Manrope", color : "rgba(111, 197, 175, 1)", fontSize : "20px" }}>₦305,450</Typography>
                         {/* Add trend icon if needed */}
                     </Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">Gross Profit</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>₦102,000</Typography>
+                    <Divider orientation="vertical" flexItem sx={{borderRightWidth: '2px',}} />
+                    <Box sx={{ textAlign: 'center', }}>
+                        <Typography variant="caption" sx={{fontWeight : 400, fontFamily : "Manrope", color : "rgba(133, 133, 133, 1)", fontSize : "14px"}}>Gross Profit</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: '700', fontFamily : "Manrope", color : "rgba(111, 197, 175, 1)", fontSize : "20px" }}>₦102,000</Typography>
                     </Box>
                 </Box>
             </Paper>
 
             {/* --- Create Order Button --- */}
-             <Button
-                variant="contained"
-                onClick={handleCreateOrder}
-                startIcon={<Image src="/box.png" width={20} height={20} alt="" style={{ filter: 'brightness(0) invert(1)' }} />} // Example box icon
-                sx={{
-                    mb: 2,
-                    bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', borderRadius: '8px', py: 1.2, px: 3, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' },
-                    width: '100%', maxWidth: '372.29px' // Match card width
-                }}
-            >
-                Create Order
-            </Button>
+            <Box sx={{
+                display: 'flex',
+                justifyContent: 'flex-start', // Align button to the left within this wrapper
+                width: '100%',
+                maxWidth: '372.29px', // Match width of other centered elements
+                mb: 2 // Keep margin bottom on the wrapper
+            }}>
+                <Button
+                    variant="contained"
+                    onClick={handleCreateOrder} // Or handleCreateForm
+                    startIcon={<Image src="/box.png" width={20} height={20} alt="" />}
+                    sx={{
+                        // Removed width: '100%'
+                        // Keep maxWidth or set a fixed width if preferred
+                        maxWidth: '186px', // As per original sx
+                        // Or fixed width: width: '186px',
+                        bgcolor: 'rgba(34, 34, 34, 1)',
+                        color: '#fff',
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                        py: 1.2,
+                        px: 3,
+                        fontSize: '16px',
+                        fontFamily: "Manrope",
+                        '&:hover': { bgcolor: 'grey.800' },
+                        // Removed mb: 2 (moved to wrapper Box)
+                    }}
+                >
+                    Create Order
+                </Button>
+            </Box>
 
+    
              {/* --- Filter and Sort Row --- */}
              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, width: '100%', maxWidth: '372.29px', px: { xs: 0, sm: 1 } }}>
                 <Button size="small" startIcon={<FilterListIcon />} onClick={handleFilter} sx={{ textTransform: 'none', color: 'text.secondary' }}>Filter</Button>
@@ -586,6 +605,8 @@ export default function Dashboard() {
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [aiError, setAiError] = useState(null);
     const aiFileInputRef = useRef(null);
+    const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
+    const [isCheckingUsage, setIsCheckingUsage] = useState(false); 
 
     // --- Auth Logic (No changes) ---
     useEffect(() => { /* ... */ const unsubscribe = onAuthStateChanged(auth, (currentUser) => { if (currentUser) { const routeUid = params.uid; if (routeUid && currentUser.uid !== routeUid) { router.push(`/login`); setUser(null); setLoading(false); return; } setUser(currentUser); } else { setUser(null); } setLoading(false); }); return () => unsubscribe(); }, [router, params]);
@@ -596,37 +617,150 @@ export default function Dashboard() {
     const handleViewChange = (event, newView) => { if (newView !== null) setActiveView(newView); };
 
     // --- AI Flow Handlers (No changes) ---
-    const handleGenerateWithAiClick = () => { setAiError(null); aiFileInputRef.current?.click(); };
-    const handleAiFileSelected = async (event) => { /* ... AI file handling logic ... */
-        const file = event.target.files?.[0];
-        const currentInput = event.target;
-        if (currentInput) currentInput.value = null;
-        if (!file || !file.type.startsWith('image/')) { setAiError(file ? 'Please select a valid image file.' : null); return; }
-        try {
-            setAiError(null); setIsAiLoading(true);
-            const storageInstance = getStorage();
-            const filePath = `ai_uploads/${user.uid}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-            const storageRefInstance = ref(storageInstance, filePath);
-            const metadata = { contentType: file.type, customMetadata: { 'uploadedBy': user.uid, 'purpose': 'ai_processing' } };
-            const uploadTask = uploadBytesResumable(storageRefInstance, file, metadata);
-            await uploadTask;
-            const firebaseImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            const formData = new FormData(); formData.append('image', file);
-            const minLoadingTimePromise = new Promise(resolve => setTimeout(resolve, 2000));
-            const fetchPromise = fetch('/api/analyzeimage', { method: 'POST', body: formData });
-            const [response] = await Promise.all([fetchPromise, minLoadingTimePromise]);
-            const result = await response.json();
-            if (!response.ok) { throw new Error(result.error || `API Error: ${response.statusText}`); }
-            const { title = `Item ${file.name.split('.')[0]}`, description = "No description provided." } = result;
-            const queryParams = new URLSearchParams({ title: title, description: description, preview: firebaseImageUrl }).toString();
-            setIsAiLoading(false);
-            router.push(`/${user.uid}/dashboard/add-item?${queryParams}`);
-        } catch (apiError) {
-            console.error("AI Generation failed:", apiError);
-            setAiError(`AI Generation failed: ${apiError.message}`);
-            setIsAiLoading(false);
+    const handleGenerateWithAiClick = () => { setAiError(null);  checkUsageAndTriggerUpload(); };
+    const checkUsageAndTriggerUpload = async () => {
+        if (!user) {
+            console.error("User not logged in.");
+            // You might want to prompt login here
+            return;
         }
-     };
+    
+        setIsCheckingUsage(true); // Start loading indicator for check
+        const userId = user.uid;
+        const userDocRef = doc(db, "users", userId);
+    
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            let currentCount = 0;
+            let currentLevel = "free";
+    
+            if (userDocSnap.exists()) {
+                const data = userDocSnap.data();
+                currentCount = data.aiUsageCount || 0;
+                currentLevel = data.accessLevel || "free";
+            } else {
+                console.log("User document doesn't exist, treating as free user with 0 count.");
+                // Optional: Create doc here if needed, or rely on first write to create it
+                // await setDoc(userDocRef, { aiUsageCount: 0, accessLevel: "free" });
+            }
+    
+            console.log(`User: ${userId}, Access Level: ${currentLevel}, Usage Count: ${currentCount}`);
+    
+            const freeLimit = 5;
+    
+            if (currentLevel === "paid" || (currentLevel === "free" && currentCount < freeLimit)) {
+                // User is allowed to proceed (either paid or free within limit)
+                console.log("Usage check passed. Triggering file input.");
+                aiFileInputRef.current?.click(); // <-- Trigger the actual file input click
+            } else {
+                // Free user limit reached
+                console.log("Free user limit reached.");
+                setShowUpgradeAlert(true); // Show the upgrade prompt
+            }
+        } catch (error) {
+            console.error("Error checking user usage:", error);
+            setAiError("Could not verify usage limits. Please try again."); // Show error to user
+        } finally {
+            setIsCheckingUsage(false); // Stop loading indicator for check
+        }
+    };
+    // Paste this inside your Dashboard component, replacing the previous handleAiFileSelected
+
+const handleAiFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    const currentInput = event.target;
+    if (currentInput) currentInput.value = null; // Clear file input
+
+    if (!file || !file.type.startsWith('image/')) {
+        setAiError(file ? 'Please select a valid image file.' : null);
+        return;
+    }
+
+    if (!user) { // Re-check user just in case
+         console.error("User became logged out during file selection?");
+         setAiError("Authentication error. Please log in again.");
+         return;
+    }
+    const userId = user.uid;
+    const userDocRef = doc(db, "users", userId); // Need ref again for increment
+
+    // Assume usage check was passed if this function is called
+
+    try {
+        setAiError(null);
+        setIsAiLoading(true); // Start AI processing overlay
+
+        // --- Corrected Upload Path ---
+        const filePath = `ai_uploads/${user.uid}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`; // <-- USE BACKTICKS HERE
+
+        console.log("Attempting upload for user UID:", user.uid);
+        console.log("Target Storage Path:", filePath); // Verify this log looks correct now
+
+        // --- Upload Logic ---
+        const storageInstance = getStorage();
+        const storageRefInstance = ref(storageInstance, filePath);
+        const metadata = { contentType: file.type, customMetadata: { 'uploadedBy': user.uid, 'purpose': 'ai_processing' } };
+        const uploadTask = uploadBytesResumable(storageRefInstance, file, metadata);
+        await uploadTask; // Wait for upload to complete
+        const firebaseImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        // --- End Upload Logic ---
+
+        // --- API Call Logic ---
+        const formData = new FormData();
+        formData.append('image', file); // Sending the raw file
+        const minLoadingTimePromise = new Promise(resolve => setTimeout(resolve, 2000)); // Keep min loading time
+        const fetchPromise = fetch('/api/analyzeimage', { method: 'POST', body: formData });
+
+        // Wait for both API and minimum time
+        const [response] = await Promise.all([fetchPromise, minLoadingTimePromise]);
+        const result = await response.json();
+
+        if (!response.ok) {
+            // Attempt to delete the uploaded image if API call failed
+            try {
+                await deleteObject(storageRefInstance);
+                console.log("Deleted uploaded image due to API failure:", filePath);
+            } catch (deleteError) {
+                console.error("Failed to delete image after API error:", deleteError);
+            }
+            throw new Error(result.error || `API Error: ${response.statusText}`);
+        }
+        // --- End API Call Logic ---
+
+        // --- Increment Firestore Count on Success (IF USER WAS FREE) ---
+        // Re-fetch the level just before incrementing to be safe
+        const userDocSnap = await getDoc(userDocRef);
+        const currentLevel = userDocSnap.exists() ? (userDocSnap.data().accessLevel || "free") : "free";
+
+        if (currentLevel === "free") {
+            try {
+                 await updateDoc(userDocRef, {
+                     aiUsageCount: increment(1)
+                 });
+                 console.log("Incremented free usage count after successful analysis.");
+            } catch(incrementError) {
+                 console.error("Failed to increment usage count, but analysis succeeded:", incrementError);
+                 // Decide how critical this is - maybe log it? The user got the analysis.
+            }
+        }
+        // --- End Increment Logic ---
+
+        // --- Corrected Navigation Logic ---
+        const { title = `Item ${file.name.split('.')[0]}`, description = "No description provided." } = result;
+        const queryParams = new URLSearchParams({ title: title, description: description, preview: firebaseImageUrl }).toString();
+
+        setIsAiLoading(false); // Stop AI overlay *before* navigating
+
+        // Ensure this uses BACKTICKS and correct variables
+        router.push(`/${user.uid}/dashboard/add-item?${queryParams}`); // <-- USE BACKTICKS HERE
+        // --- End Navigation Logic ---
+
+    } catch (error) { // Catch errors from upload, API call, or increment check
+        console.error("AI Generation or Upload failed:", error);
+        setAiError(`Operation failed: ${error.message}`);
+        setIsAiLoading(false); // Stop overlay on error
+    }
+};
 
     // --- Render Logic ---
     if (loading) { return (<Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><CircularProgress size={60} /></Box>); }
@@ -646,6 +780,113 @@ export default function Dashboard() {
                         <ToggleButton value="salesOrder" aria-label="sales order" disableRipple sx={{ flexGrow: 1, height: `${groupHeight}px`, textTransform: 'none', fontFamily: fontFamily, fontSize: baseFontSize, fontWeight: baseFontWeight, lineHeight: '100%', letterSpacing: '0%', border: 'none', borderRadius: 0, color: activeView === 'salesOrder' ? activeTextColorCalculated : inactiveTextColor, bgcolor: activeView === 'salesOrder' ? activeBgColor : 'transparent', '&:hover': { bgcolor: activeView !== 'salesOrder' ? theme.palette.action.hover : activeBgColor }, '&.Mui-selected': { color: activeTextColorCalculated, bgcolor: activeBgColor, '&:hover': { bgcolor: activeBgColor } } }}> Sales/Order </ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
+                {isCheckingUsage && <LoadingOverlay text="Checking usage limits..." />}
+
+                {/* Upgrade Alert Dialog */}
+                <Dialog
+                    open={showUpgradeAlert}
+                    onClose={() => setShowUpgradeAlert(false)}
+                    aria-labelledby="upgrade-dialog-title"
+                    aria-describedby="upgrade-dialog-description"
+                    fullWidth
+                    maxWidth="xs"
+                    BackdropProps={{
+                        style: {
+                            backgroundColor: 'rgba(34, 34, 34,)', // Dark overlay, matches app aesthetic
+                        },
+                    }}
+                    TransitionProps={{ timeout: 0 }} // Instant appearance, no fade
+                    sx={{
+                        '& .MuiDialog-paper': {
+                            borderRadius: '12px',
+                            maxWidth: 'min(90vw, 400px)',
+                            margin: '16px',
+                            fontFamily: 'Manrope',
+                            color: 'rgba(34, 34, 34, 1)',
+                            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
+                        },
+                    }}
+                >
+                    <DialogTitle
+                        id="upgrade-dialog-title"
+                        sx={{
+                            fontFamily: 'Manrope',
+                            fontSize: '18px',
+                            fontWeight: 700,
+                            color: 'rgba(34, 34, 34, 1)',
+                            padding: '16px 24px',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Upgrade for Unlimited Access
+                    </DialogTitle>
+                    <DialogContent sx={{ padding: '0 24px 16px' }}>
+                        <DialogContentText
+                            id="upgrade-dialog-description"
+                            sx={{
+                                fontFamily: 'Manrope',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                color: 'rgba(34, 34, 34, 1)',
+                                textAlign: 'center',
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            You’ve reached the free limit of 5 image analyses. Subscribe for ₦5,000 to unlock unlimited AI image analysis with Gemini.
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions
+                        sx={{
+                            padding: '8px 24px 16px',
+                            display: 'flex',
+                            gap: 2,
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Button
+                            onClick={() => setShowUpgradeAlert(false)}
+                            sx={{
+                                fontFamily: 'Manrope',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: 'rgba(34, 34, 34, 1)',
+                                textTransform: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                minWidth: '100px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                                },
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setShowUpgradeAlert(false);
+                                router.push(`/${user?.uid}/dashboard/upgrade`);
+                            }}
+                            sx={{
+                                fontFamily: 'Manrope',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: '#fff',
+                                textTransform: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                minWidth: '100px',
+                                backgroundColor: 'rgba(34, 34, 34, 1)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(34, 34, 34, 0.9)',
+                                },
+                            }}
+                            autoFocus
+                        >
+                            Upgrade
+                        </Button>
+                    </DialogActions>
+                </Dialog>
                 {/* Error Display */}
                 <Snackbar open={!!aiError} autoHideDuration={6000} onClose={() => setAiError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} >
                     <Alert onClose={() => setAiError(null)} severity="error" sx={{ width: '100%' }}> {aiError} </Alert>
