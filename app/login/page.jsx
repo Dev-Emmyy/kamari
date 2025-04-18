@@ -314,7 +314,8 @@ export default function AuthForm() {
                 minHeight: { xs: '100vh', sm: '100dvh' },
                 p: 2,                    
                 boxSizing: 'border-box', 
-                width: '100%',            
+                width: '100%',          
+                overflowX: "hidden",  
             }}
         >
             <Box
