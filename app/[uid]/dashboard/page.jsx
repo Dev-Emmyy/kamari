@@ -646,7 +646,7 @@ export default function Dashboard() {
     
             console.log(`User: ${userId}, Access Level: ${currentLevel}, Usage Count: ${currentCount}`);
     
-            const freeLimit = 5;
+            const freeLimit = 7;
     
             if (currentLevel === "paid" || (currentLevel === "free" && currentCount < freeLimit)) {
                 // User is allowed to proceed (either paid or free within limit)
