@@ -16,6 +16,8 @@ import {
     Collapse,  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle 
 } from "@mui/material";
 
+import { FaLongArrowAltRight } from "react-icons/fa";
+
 // --- Icon Imports ---
 import {
     Edit as EditIcon, FilterList as FilterListIcon, Sort as SortIcon,
@@ -86,12 +88,37 @@ const InventoryItemCard = ({ item, isExpanded, onExpandToggle, onDeleteItem, onF
     const statusTextColor = currentStatus === 'available' ? 'rgba(83, 125, 88, 1)' : 'rgba(226, 185, 21, 1)';
 
     // --- Handlers ---
-    const handleShare = () => {
-        const message = `Check out this item: *${item.title}* - Status: ${statusText} (${item.stock ?? 0} in stock). Price: ${formatCurrency(item.sellingPrice)}`;
-        const encodedMessage = encodeURIComponent(message);
+    const handleShare = async () => {
+        // Format text message
+        const stockText = item.stock ?? 0;
+        const text = `*${item.title}*\n${statusText}\n${stockText} in stock\n${formatCurrency(item.sellingPrice)}`;
+      
+        // Check if Web Share API is supported
+        if (navigator.share && item.imageUrl) {
+          try {
+            // Fetch image from Firebase Storage URL
+            const response = await fetch(item.imageUrl);
+            if (!response.ok) throw new Error('Failed to fetch image');
+            const blob = await response.blob();
+            const file = new File([blob], `${item.title}.jpg`, { type: blob.type });
+      
+            // Share image and text via Web Share API
+            await navigator.share({
+              files: [file],
+              text,
+            });
+            return; // Exit after successful share
+          } catch (error) {
+            console.error('Web Share failed:', error);
+            // Fall through to wa.me fallback
+          }
+        }
+      
+        // Fallback: Text-only share via wa.me
+        const encodedMessage = encodeURIComponent(text);
         const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
         window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    };
+      };
 
     const handleToggleFulfillMode = () => {
         if (!isFulfilling) {
@@ -1068,68 +1095,78 @@ export default function Dashboard() {
             TransitionProps={{ timeout: 0 }} // Instant appearance, no fade
             sx={{
               "& .MuiDialog-paper": {
-                borderRadius: "12px",
-                maxWidth: "min(90vw, 400px)",
+                borderRadius: "13px",
+                maxWidth: "min(90vw, 297px)",
                 margin: "16px",
                 fontFamily: "Manrope",
                 color: "rgba(34, 34, 34, 1)",
                 boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.1)",
+                backgroundColor: "rgba(34, 34, 34, 1)"
               },
             }}
           >
             <DialogTitle
+                id="upgrade-dialog-title"
+                sx={{
+                fontFamily: 'Manrope',
+                fontSize: '18px',
+                fontWeight: 700,
+                color: 'rgba(99, 102, 110, 1)',
+                padding: '16px 24px',
+                textAlign: 'center',
+                }}
+            >
+                You’ve reached your limit of{' '}
+                <Typography
+                component="span"
+                sx={{
+                    color: '#FB6616', // Orange color for "5 free AI"
+                    fontFamily: 'Manrope',
+                    fontWeight: 700,
+                    fontSize: '18px',
+                }}
+                >
+                5 free AI
+                </Typography>{' '}
+                generated items
+            </DialogTitle>
+
+            <Divider
+                sx={{
+                    my: 1.5,
+                    borderColor: '#FFFFFF', // Fix: Set line color to white
+                    fontFamily: 'Manrope, sans-serif',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    width: '248px', // Keep your specified width
+                    mx: 'auto', // Center the divider
+                }}
+             />
+            <DialogTitle
               id="upgrade-dialog-title"
               sx={{
                 fontFamily: "Manrope",
-                fontSize: "18px",
-                fontWeight: 700,
-                color: "rgba(34, 34, 34, 1)",
+                fontSize: "14px",
+                fontWeight: 400,
+                color: "rgba(246, 246, 246, 1)",
                 padding: "16px 24px",
                 textAlign: "center",
               }}
             >
-              Upgrade for Unlimited Access
+              Don’t worry, it’s only
             </DialogTitle>
-            <DialogContent sx={{ padding: "0 24px 16px" }}>
-              <DialogContentText
-                id="upgrade-dialog-description"
-                sx={{
-                  fontFamily: "Manrope",
-                  fontSize: "14px",
-                  fontWeight: 400,
-                  color: "rgba(34, 34, 34, 1)",
-                  textAlign: "center",
-                  lineHeight: 1.5,
-                }}
-              >
-                You’ve reached the free limit of 5 image analyses. Subscribe for ₦5,000 to unlock unlimited AI image analysis with Gemini.
-              </DialogContentText>
-            </DialogContent>
             <DialogActions
               sx={{
                 padding: "8px 24px 16px",
                 display: "flex",
+                flexDirection: "column-reverse",
                 gap: 2,
                 justifyContent: "center",
               }}
             >
               <Button
                 onClick={() => setShowUpgradeAlert(false)}
-                sx={{
-                  fontFamily: "Manrope",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  color: "rgba(34, 34, 34, 1)",
-                  textTransform: "none",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  minWidth: "100px",
-                  backgroundColor: "rgba(0, 0, 0, 0.05)",
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 0, 0, 0.1)",
-                  },
-                }}
-              >
+                sx={{ fontWeight: "400",fontSize : "10px", color: "#63666E", fontFamily: "Manrope",}}>
                 Cancel
               </Button>
               <Button
@@ -1146,14 +1183,17 @@ export default function Dashboard() {
                   padding: "8px 16px",
                   borderRadius: "8px",
                   minWidth: "100px",
-                  backgroundColor: "rgba(34, 34, 34, 1)",
-                  "&:hover": {
-                    backgroundColor: "rgba(34, 34, 34, 0.9)",
+                  background: "linear-gradient(90deg, #FB6616 0%, #D83B3B 48.11%, #AD2096 100%)",
+                  boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  '&:hover': {
+                  background: 'linear-gradient(90deg, #E65A14 0%, #C23434 48.11%, #9C1C87 100%)',
                   },
                 }}
-                autoFocus
               >
-                Upgrade
+                <Typography sx={{ fontWeight: "700",fontSize : "24px", color: "rgba(246, 246, 246, 1)", fontFamily: "Manrope", mr: 1}}>₦500</Typography> <span sx={{ fontWeight: "700",fontSize : "13px", color: "rgba(246, 246, 246, 1)", fontFamily: "Manrope"}}>Monthly</span> <FaLongArrowAltRight style={{ fontSize: '16px', color: 'rgba(246, 246, 246, 1)' }} />
               </Button>
             </DialogActions>
           </Dialog>

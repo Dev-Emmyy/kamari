@@ -252,9 +252,10 @@ export default function CreateOrderForm() {
     if (!user) return <Typography sx={{ textAlign: 'center', mt: 4 }}>Please sign in to create an order.</Typography>;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', p: 2, maxWidth: '450px', margin: '20px auto', bgcolor: '#F8F8F8', borderRadius: '8px', gap: 2 }}>
+        <Box sx={{ bgcolor: '#F8F8F8' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', maxWidth: '450px', borderRadius: '8px', gap: 2 }}>
             <Header user={user} ref={headerRef} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 2 }}>
                 <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(34, 34, 34, 1)", fontSize: "20px", fontFamily: "Manrope" }}>Create Order</Typography>
                 <Button fullWidth variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={handleAddFromContacts} sx={{ bgcolor: 'rgba(34, 34, 34, 1)', color: '#fff', textTransform: 'none', fontFamily: "Manrope", fontWeight: 400, borderRadius: '8px', py: 1.5, fontSize: '1rem', '&:hover': { bgcolor: 'grey.800' } }}>
                     Add Customer from Contacts
@@ -518,5 +519,6 @@ export default function CreateOrderForm() {
             </Dialog>
             </Dialog>
         </Box>
+     </Box>
     );
 }

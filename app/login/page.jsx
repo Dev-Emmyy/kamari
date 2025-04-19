@@ -34,10 +34,23 @@ const textFieldStyles = {
         "& .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
         "&:hover .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
         "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "1px solid rgba(133, 133, 133, 1)" },
-        "& .MuiInputBase-input": { fontFamily: "'Instrument Sans', sans-serif", fontSize: "14px", padding: "15px" },
+        "& .MuiInputBase-input": { 
+            fontFamily: "'Instrument Sans', sans-serif", 
+            fontSize: "16px", // Prevent iOS zoom
+            padding: "15px",
+        },
     },
-    "& .MuiInputLabel-root": { fontFamily: "'Instrument Sans', sans-serif", fontWeight: 400, fontSize: "14px", color: "rgba(66, 64, 61, 1)" },
-    "& .MuiInputLabel-root.Mui-focused": { color: "rgba(66, 64, 61, 1)", fontWeight: 400, fontSize: "14px" },
+    "& .MuiInputLabel-root": { 
+        fontFamily: "'Instrument Sans', sans-serif", 
+        fontWeight: 400, 
+        fontSize: "16px", // Prevent iOS zoom
+        color: "rgba(66, 64, 61, 1)" 
+    },
+    "& .MuiInputLabel-root.Mui-focused": { 
+        color: "rgba(66, 64, 61, 1)", 
+        fontWeight: 400, 
+        fontSize: "16px" 
+    },
 };
 
 // Specific styles for the Email field
@@ -194,7 +207,6 @@ export default function AuthForm() {
         setSuccess("");
 
         if (isNewUser) {
-            // Sign Up
             if (!name.trim()) {
                 setError("Please enter your name.");
                 setIsEmailProcessing(false);
@@ -232,7 +244,6 @@ export default function AuthForm() {
                 setIsEmailProcessing(false);
             }
         } else {
-            // Sign In
             if (!email.trim() || !password.trim()) {
                 setError("Please enter both email and password.");
                 setIsEmailProcessing(false);
@@ -311,29 +322,40 @@ export default function AuthForm() {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                minHeight: { xs: '100vh', sm: '100dvh' },
-                p: 2,                    
-                boxSizing: 'border-box', 
-                width: '100%',          
-                overflowX: "hidden",  
+                minHeight: "100dvh", // Dynamic viewport height
+                width: "100vw", // Full viewport width
+                overflowX: "hidden",
+                p: 2,
+                boxSizing: "border-box",
+                paddingTop: "env(safe-area-inset-top)", // Respect iOS notch
+                paddingBottom: "env(safe-area-inset-bottom)", // Respect iOS home bar
             }}
         >
             <Box
                 sx={{
-                    width: "100%",    
-                    maxWidth: "298px",         
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
+                    width: "min(100%, 298px)", // Constrain to viewport
+                    maxWidth: "298px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    mx: "auto", // Center horizontally
                 }}
             >
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "10px", mb: { xs: 3, sm: 5 } }}>
                     <Image src="/logo.png" alt="logo" width={200} height={96} priority />
                 </Box>
 
-                <Box sx={{ width: '100%', mb: 2 }}>
-                    {success && <Alert severity="success" sx={{ maxWidth: 400 }} onClose={() => setSuccess("")}>{success}</Alert>}
-                    {error && <Alert severity="error" sx={{ maxWidth: 400 }} onClose={() => setError("")}>{error}</Alert>}
+                <Box sx={{ width: "100%", mb: 2 }}>
+                    {success && (
+                        <Alert severity="success" sx={{ width: "100%", maxWidth: "298px" }} onClose={() => setSuccess("")}>
+                            {success}
+                        </Alert>
+                    )}
+                    {error && (
+                        <Alert severity="error" sx={{ width: "100%", maxWidth: "298px" }} onClose={() => setError("")}>
+                            {error}
+                        </Alert>
+                    )}
                 </Box>
 
                 <Button
@@ -341,14 +363,34 @@ export default function AuthForm() {
                     onClick={handleGoogleAuth}
                     fullWidth
                     disabled={isGoogleProcessing || isEmailProcessing}
-                    startIcon={!isGoogleProcessing ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18" style={{ marginRight: '8px' }}>
-                            <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.4-.1-2.7-.4-4z"/>
-                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2.1 1.4-4.7 2.2-7.2 2.2-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                            <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l.1-.1 6.2 5.2C41 39.2 44 34 44 24c0-1.4-.1-2.7-.4-4z"/>
-                        </svg>
-                    ) : null}
+                    startIcon={
+                        !isGoogleProcessing ? (
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 48 48"
+                                width="18"
+                                height="18"
+                                style={{ marginRight: "8px" }}
+                            >
+                                <path
+                                    fill="#FFC107"
+                                    d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.4-.1-2.7-.4-4z"
+                                />
+                                <path
+                                    fill="#FF3D00"
+                                    d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+                                />
+                                <path
+                                    fill="#4CAF50"
+                                    d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2.1 1.4-4.7 2.2-7.2 2.2-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"
+                                />
+                                <path
+                                    fill="#1976D2"
+                                    d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l.1-.1 6.2 5.2C41 39.2 44 34 44 24c0-1.4-.1-2.7-.4-4z"
+                                />
+                            </svg>
+                        ) : null
+                    }
                     sx={googleButtonStyles}
                 >
                     {isGoogleProcessing ? (
@@ -358,7 +400,16 @@ export default function AuthForm() {
                     )}
                 </Button>
 
-                <Divider sx={{ my: 2, color: "#5f6368", fontFamily: "Manrope, sans-serif", fontWeight: 800, fontSize: 14, width: '100%' }} >
+                <Divider
+                    sx={{
+                        my: 2,
+                        color: "#5f6368",
+                        fontFamily: "Manrope, sans-serif",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        width: "100%",
+                    }}
+                >
                     OR
                 </Divider>
 
@@ -396,7 +447,7 @@ export default function AuthForm() {
                         endAdornment: (
                             <InputAdornment position="end">
                                 <IconButton onClick={handleClickShowPassword} edge="end">
-                                    {showPassword ? <Visibility fontSize="small"/> : <VisibilityOff fontSize="small"/>}
+                                    {showPassword ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
                                 </IconButton>
                             </InputAdornment>
                         ),
@@ -416,11 +467,8 @@ export default function AuthForm() {
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">
-                                    <IconButton 
-                                        onClick={handleClickShowConfirmPassword} 
-                                        edge="end"
-                                    >
-                                        {showConfirmPassword ? <Visibility fontSize="small"/> : <VisibilityOff fontSize="small"/>}
+                                    <IconButton onClick={handleClickShowConfirmPassword} edge="end">
+                                        {showConfirmPassword ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
                                     </IconButton>
                                 </InputAdornment>
                             ),
@@ -431,17 +479,17 @@ export default function AuthForm() {
                 )}
 
                 {!isNewUser && (
-                    <Box sx={{ width: '100%', textAlign: 'left', mb: 2 }}>
+                    <Box sx={{ width: "100%", textAlign: "left", mb: 2 }}>
                         <Link
                             component="button"
                             variant="body2"
                             onClick={handleForgotPassword}
                             sx={{
-                                fontSize: '14px',
-                                color: 'rgba(66, 64, 61, 1)',
+                                fontSize: "14px",
+                                color: "rgba(66, 64, 61, 1)",
                                 fontFamily: "Manrope, sans-serif",
                                 fontWeight: 400,
-                                textDecoration: 'none',
+                                textDecoration: "none",
                             }}
                         >
                             Forgot your password?
@@ -465,7 +513,7 @@ export default function AuthForm() {
                     )}
                 </Button>
 
-                <Typography sx={{ mt: 1, mb: 2, textAlign: 'center', color: "text.secondary", fontSize: '14px' }} >
+                <Typography sx={{ mt: 1, mb: 2, textAlign: "center", color: "text.secondary", fontSize: "14px" }}>
                     {isNewUser ? "Have an account?" : "Don't have an account?"}
                     <Button
                         variant="text"
@@ -476,11 +524,11 @@ export default function AuthForm() {
                             color: "primary.main",
                             fontWeight: 500,
                             fontSize: "14px",
-                            textTransform: 'none',
-                            p: '0 4px',
-                            ml: '4px',
-                            minWidth: 'auto',
-                            '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+                            textTransform: "none",
+                            p: "0 4px",
+                            ml: "4px",
+                            minWidth: "auto",
+                            "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
                         }}
                     >
                         {isNewUser ? "Sign In" : "Sign up"}
