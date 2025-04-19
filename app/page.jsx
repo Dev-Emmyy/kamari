@@ -102,16 +102,6 @@ export default function Home() {
                         style={{ display: 'block' }}
                     />
                 </Box>
-                <Box>
-                    <Image
-                        src="/logo2.png"
-                        alt="Kamari Logo 2"
-                        width={140}
-                        height={100}
-                        priority
-                        style={{ display: 'block' }}
-                    />
-                </Box>
             </Box>
 
             {/* Main Content Container */}
