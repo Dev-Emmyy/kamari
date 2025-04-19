@@ -92,7 +92,7 @@ export default function Home() {
                 width: '100%',
                 boxSizing: 'border-box',
             }}>
-                <Box sx={{ pl: 2 }}>
+                <Box sx={{ pl: 2, mt: 3 }}>
                     <Image
                         src="/logo.png"
                         alt="Kamari Logo"
