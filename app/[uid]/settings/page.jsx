@@ -419,6 +419,14 @@ export default function SettingsPage() {
           <Dialog
             open={openSuccessDialog}
             onClose={() => setOpenSuccessDialog(false)}
+            fullWidth
+            maxWidth="xs"
+            BackdropProps={{
+              style: {
+                backgroundColor: "rgba(34, 34, 34,)", // Dark overlay, matches app aesthetic
+              },
+            }}
+            TransitionProps={{ timeout: 0 }} // Instant appearance, no fade
             sx={{
               '& .MuiDialog-paper': {
                 borderRadius: '13.89px',

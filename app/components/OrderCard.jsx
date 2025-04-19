@@ -1,11 +1,11 @@
-// Suggested new file: /app/components/OrderCard.jsx
 "use client";
 
-import React from 'react';
-import { Box, Typography, Paper, Avatar, IconButton, useTheme } from '@mui/material';
-import { format } from 'date-fns'; // For date formatting
-import Image from 'next/image'; // Use Next.js Image for optimization
-
+import React, { useState } from 'react';
+import { Box, Typography, Paper, Avatar, IconButton, useTheme, Menu, MenuItem } from '@mui/material';
+import { format } from 'date-fns';
+import Collapse from '@mui/material/Collapse';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { FaChevronDown } from 'react-icons/fa';
 // --- Helper: Currency Formatting ---
 function formatCurrency(amount) {
     if (typeof amount !== 'number' || isNaN(amount)) { return "₦0"; }
@@ -24,149 +24,337 @@ function formatDate(timestamp) {
     }
 }
 
-// --- Style Constants (Copied from InventoryItemCard for consistency, adjust as needed) ---
-const cardBorderRadius = '8.32px';
-const cardPaddingTB = '9.38px';
-const cardPaddingLR = '10.32px';
-const cardBg = 'rgba(255, 255, 255, 1)';
-const cardGap = '9.38px';
+// --- Style Constants (Aligned with InventoryItemCard for consistency) ---
+const cardMaxWidth = 600;
+const cardBorderRadius = '8px';
+const cardPaddingTB = '12px';
+const cardPaddingLR = '16px';
+const cardBg = '#fff';
+const cardGap = 2;
 const orderTitleFontFamily = 'Manrope, sans-serif';
 const orderTitleFontWeight = 600;
-const orderTitleFontSize = '14.27px';
-const orderTitleColor = 'rgba(99, 102, 110, 1)'; // Adjust color if needed
+const orderTitleFontSize = '15px';
+const orderTitleColor = 'rgba(99, 102, 110, 1)';
 const orderDateFontFamily = 'Manrope, sans-serif';
 const orderDateFontWeight = 600;
 const orderDateFontSize = '12px';
 const orderDateColor = 'rgba(139, 139, 139, 1)';
-const orderStatusBoxHeight = '20.21px'; // Re-use status box styles
-const orderStatusBoxRadius = '11.89px';
+const orderStatusBoxHeight = '24px';
+const orderStatusBoxRadius = '12px';
 const orderStatusTextFontFamily = 'Manrope, sans-serif';
 const orderStatusTextFontWeight = 800;
-const orderStatusTextFontSize = '6.55px';
+const orderStatusTextFontSize = '10px';
 const orderAmountFontFamily = 'Manrope, sans-serif';
-const orderAmountFontWeight = 600;
-const orderAmountFontSize = '12px';
-const orderAmountColor = 'rgba(30, 30, 30, 1)';
-const orderImageBoxSize = '56px'; // Slightly smaller image based on Figma
-const orderImageBorderRadius = '8px';
-
+const orderAmountFontWeight = 800;
+const orderAmountFontSize = '18px';
+const orderAmountColor = 'rgba(111, 197, 175, 1)';
+const orderImageBoxSize = '64px';
+const orderImageBorderRadius = '4px';
+const customerTextFontFamily = 'Manrope, sans-serif';
+const customerTextFontWeight = 600;
+const customerTextFontSize = '12px';
+const customerTextColor = 'rgba(30, 30, 30, 1)';
 
 const OrderCard = ({ order, onUpdatePaymentStatus, onUpdateShippingStatus }) => {
     const theme = useTheme();
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [paymentMenuAnchor, setPaymentMenuAnchor] = useState(null);
+    const [shippingMenuAnchor, setShippingMenuAnchor] = useState(null);
 
     // --- Determine Status Display ---
-    const paymentStatus = order.paymentStatus || 'unpaid'; // Default
-    const shippingStatus = order.shippingStatus || 'unshipped'; // Default
+    const paymentStatus = order.paymentStatus || 'unpaid';
+    const paymentStatusText = paymentStatus === 'paid' ? 'paid' : 'unpaid';
+    const paymentStatusBgColor = 'rgba(234, 250, 235, 1)';
+    const paymentStatusTextColor = 'rgba(83, 125, 88, 1)';
 
-    const paymentStatusText = paymentStatus === 'paid' ? 'Paid' : 'Unpaid';
-    const paymentStatusBgColor = paymentStatus === 'paid' ? 'rgba(234, 250, 235, 1)' : 'rgba(255, 235, 235, 1)'; // Green / Red
-    const paymentStatusTextColor = paymentStatus === 'paid' ? 'rgba(83, 125, 88, 1)' : 'rgba(194, 76, 76, 1)'; // Dark Green / Dark Red
+    const shippingStatus = order.shippingStatus || 'unshipped';
+    const shippingStatusText = shippingStatus === 'shipped' ? 'shipped' : 'unshipped';
+    const shippingStatusBgColor = 'rgba(234, 250, 235, 1)';
+    const shippingStatusTextColor = 'rgba(83, 125, 88, 1)';
 
-    const shippingStatusText = shippingStatus === 'shipped' ? 'Shipped' : 'Unshipped';
-    const shippingStatusBgColor = shippingStatus === 'shipped' ? 'rgba(234, 250, 235, 1)' : 'rgba(255, 245, 230, 1)'; // Green / Orangeish
-    const shippingStatusTextColor = shippingStatus === 'shipped' ? 'rgba(83, 125, 88, 1)' : 'rgba(180, 120, 20, 1)'; // Dark Green / Dark Orangeish
+    // --- Handlers ---
+    const handleExpandToggle = () => {
+        setIsExpanded(!isExpanded);
+    };
 
-    // --- Handlers for Clicking Badges ---
-    const handlePaymentBadgeClick = () => {
-        const newStatus = paymentStatus === 'paid' ? 'unpaid' : 'paid';
+    const handlePaymentMenuOpen = (event) => {
+        setPaymentMenuAnchor(event.currentTarget);
+    };
+
+    const handlePaymentMenuClose = () => {
+        setPaymentMenuAnchor(null);
+    };
+
+    const handleShippingMenuOpen = (event) => {
+        setShippingMenuAnchor(event.currentTarget);
+    };
+
+    const handleShippingMenuClose = () => {
+        setShippingMenuAnchor(null);
+    };
+
+    const handlePaymentMenuSelect = (newStatus) => {
         onUpdatePaymentStatus(order.id, newStatus);
+        handlePaymentMenuClose();
     };
 
-    const handleShippingBadgeClick = () => {
-        const newStatus = shippingStatus === 'shipped' ? 'unshipped' : 'shipped';
+    const handleShippingMenuSelect = (newStatus) => {
         onUpdateShippingStatus(order.id, newStatus);
+        handleShippingMenuClose();
     };
 
-    // Determine what to display as the primary identifier
-    // Using first product name as placeholder, or customer name if available
-    const orderDisplayTitle = order.customerName || order.products?.[0]?.name || `Order #${order.id.substring(0, 5)}`;
+    // Determine display title and image from the first product
+    const orderDisplayTitle = order.products?.[0]?.name || 'Untitled Item';
     const firstProductImage = order.products?.[0]?.imageUrl || 'https://placehold.co/100x100/cccccc/333?text=?';
-    const productCount = order.products?.length || 0;
 
     return (
         <Paper
             elevation={1}
             sx={{
                 width: '100%',
-                maxWidth: '372.29px', // Match inventory card width
+                maxWidth: `${cardMaxWidth}px`,
                 borderRadius: cardBorderRadius,
                 mb: 2,
                 overflow: 'hidden',
                 bgcolor: cardBg,
             }}
         >
+            {/* --- Top Section (Visible Always) --- */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: cardGap, p: `${cardPaddingTB} ${cardPaddingLR}` }}>
-                {/* Left Side: Details & Status Badges */}
-                <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.8, mr: 1 }}>
-                    <Typography sx={{ fontFamily: orderTitleFontFamily, fontWeight: orderTitleFontWeight, fontSize: orderTitleFontSize, color: orderTitleColor, lineHeight: '1.2', wordBreak: 'break-word' }}>
-                        {orderDisplayTitle}
-                    </Typography>
-                    <Typography sx={{ fontFamily: orderDateFontFamily, fontWeight: orderDateFontWeight, fontSize: orderDateFontSize, color: orderDateColor, lineHeight: '1' }}>
-                        {order.createdAt ? formatDate(order.createdAt) : 'No date'}
-                    </Typography>
-                    <Typography sx={{ fontFamily: orderAmountFontFamily, fontWeight: orderAmountFontWeight, fontSize: orderAmountFontSize, color: orderAmountColor, lineHeight: '1', mt: 0.5 }}>
-                        {formatCurrency(order.totalAmount)}
-                    </Typography>
+                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    {/* Order Info */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, mr: 1 }}>
+                        <Typography sx={{ fontFamily: orderTitleFontFamily, fontWeight: orderTitleFontWeight, fontSize: orderTitleFontSize, color: orderTitleColor, lineHeight: '1.2', wordBreak: 'break-word' }}>
+                            {orderDisplayTitle}
+                        </Typography>
+                        <Typography sx={{ fontFamily: orderDateFontFamily, fontWeight: orderDateFontWeight, fontSize: orderDateFontSize, color: orderDateColor, lineHeight: '1' }}>
+                            {order.createdAt ? formatDate(order.createdAt) : 'No date'}
+                        </Typography>
 
-                    {/* Status Badges Row */}
-                    <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                        {/* Payment Status Badge */}
-                        <Box
-                            onClick={handlePaymentBadgeClick}
-                            title={`Click to mark as ${paymentStatus === 'paid' ? 'Unpaid' : 'Paid'}`}
-                            sx={{
-                                width: 'auto', px: 1.5, height: orderStatusBoxHeight, borderRadius: orderStatusBoxRadius, bgcolor: paymentStatusBgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { opacity: 0.8 }
-                            }}>
-                            <Typography sx={{ fontFamily: orderStatusTextFontFamily, fontWeight: orderStatusTextFontWeight, fontSize: orderStatusTextFontSize, color: paymentStatusTextColor, lineHeight: '1' }}>
-                                {paymentStatusText}
-                            </Typography>
+                        {/* Payment Status Badge with Dropdown */}
+                        <Box sx={{ position: 'relative' }}>
+                            <Box
+                                onClick={handlePaymentMenuOpen}
+                                title={`Click to toggle payment status`}
+                                sx={{
+                                    width: '104px',
+                                    px: 1.5,
+                                    pr: 3, // Extra padding to accommodate the icon
+                                    height: orderStatusBoxHeight,
+                                    borderRadius: orderStatusBoxRadius,
+                                    bgcolor: paymentStatusBgColor,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    '&:hover': { opacity: 0.8 }
+                                }}
+                            >
+                                <Typography sx={{ fontFamily: orderStatusTextFontFamily, fontWeight: orderStatusTextFontWeight, fontSize: orderStatusTextFontSize, color: paymentStatusTextColor, lineHeight: '1' }}>
+                                    {paymentStatusText}
+                                </Typography>
+                                <FaChevronDown style={{ color: paymentStatusTextColor, fontSize: '12px', marginLeft: '4px' }} />
+                            </Box>
+                            <Menu
+                                anchorEl={paymentMenuAnchor}
+                                open={Boolean(paymentMenuAnchor)}
+                                onClose={handlePaymentMenuClose}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                                PaperProps={{
+                                    sx: {
+                                        backgroundColor: 'transparent',
+                                        boxShadow: 'none',
+                                        mt: 0.5,
+                                    }
+                                }}
+                            >
+                                <MenuItem
+                                    onClick={() => handlePaymentMenuSelect(paymentStatus === 'paid' ? 'unpaid' : 'paid')}
+                                    sx={{
+                                        backgroundColor: paymentStatusBgColor,
+                                        color: paymentStatusTextColor,
+                                        fontFamily: orderStatusTextFontFamily,
+                                        fontWeight: orderStatusTextFontWeight,
+                                        fontSize: orderStatusTextFontSize,
+                                        px: 1.5,
+                                        py: 0.75,
+                                        borderRadius: orderStatusBoxRadius,
+                                        minHeight: orderStatusBoxHeight,
+                                        '&:hover': { opacity: 0.8 }
+                                    }}
+                                >
+                                    {paymentStatus === 'paid' ? 'unpaid' : 'paid'}
+                                </MenuItem>
+                            </Menu>
                         </Box>
-                         {/* Shipping Status Badge */}
-                         <Box
-                            onClick={handleShippingBadgeClick}
-                            title={`Click to mark as ${shippingStatus === 'shipped' ? 'Unshipped' : 'Shipped'}`}
-                            sx={{
-                                width: 'auto', px: 1.5, height: orderStatusBoxHeight, borderRadius: orderStatusBoxRadius, bgcolor: shippingStatusBgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { opacity: 0.8 }
-                            }}>
-                            <Typography sx={{ fontFamily: orderStatusTextFontFamily, fontWeight: orderStatusTextFontWeight, fontSize: orderStatusTextFontSize, color: shippingStatusTextColor, lineHeight: '1' }}>
-                                {shippingStatusText}
-                            </Typography>
-                        </Box>
+                    </Box>
+
+                    {/* Amount & Expand Icon */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', minHeight: `calc(${orderStatusBoxHeight} + 1.5em)` }}>
+                        <IconButton
+                            onClick={handleExpandToggle}
+                            size="small"
+                            sx={{ color: orderTitleColor, width: '24px', height: '24px', p: 0, mb: 1 }}
+                            aria-expanded={isExpanded}
+                            aria-label={isExpanded ? "Collapse Details" : "Expand Details"}
+                            title={isExpanded ? "Hide details" : "Show details"}
+                        >
+                            <ChevronRightIcon sx={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                        </IconButton>
+                        <Typography sx={{ fontFamily: orderAmountFontFamily, fontWeight: orderAmountFontWeight, fontSize: orderAmountFontSize, color: orderAmountColor, lineHeight: '1', textAlign: 'right', mt: 'auto' }}>
+                            {formatCurrency(order.totalAmount)}
+                        </Typography>
                     </Box>
                 </Box>
 
-                {/* Right Side: Image with Count Badge */}
-                <Box sx={{ position: 'relative', width: orderImageBoxSize, height: orderImageBoxSize, flexShrink: 0 }}>
-                     <Avatar
+                {/* Image */}
+                <Box sx={{ width: orderImageBoxSize, height: orderImageBoxSize, borderRadius: orderImageBorderRadius, overflow: 'hidden', position: 'relative', flexShrink: 0, bgcolor: theme.palette.grey[100] }}>
+                    <Avatar
                         variant="rounded"
                         src={firstProductImage}
                         alt={orderDisplayTitle}
                         sx={{ width: '100%', height: '100%', borderRadius: orderImageBorderRadius, bgcolor: 'grey.200' }}
                     />
-                     {/* Show count badge if more than 1 product */}
-                    {productCount > 1 && (
-                        <Box sx={{
-                            position: 'absolute',
-                            top: -5,
-                            right: -5,
-                            bgcolor: 'error.main', // Or your theme's notification color
-                            color: 'white',
-                            borderRadius: '50%',
-                            width: 20,
-                            height: 20,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            boxShadow: 1,
-                        }}>
-                            +{productCount}
-                        </Box>
-                    )}
                 </Box>
             </Box>
-            {/* No Collapsible section needed based on Figma for the order card itself */}
+
+            {/* --- Collapsible Section --- */}
+            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                <Box sx={{ p: `${cardPaddingTB} ${cardPaddingLR}`, pt: 1, pb: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+                    {/* Customer Info */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Avatar
+                            sx={{ width: 24, height: 24, bgcolor: 'grey.200' }}
+                            alt={order.customerName || 'Customer'}
+                            src={order.customerImage || 'https://placehold.co/24x24/cccccc/333?text=C'}
+                        />
+                        <Typography sx={{ fontFamily: customerTextFontFamily, fontWeight: customerTextFontWeight, fontSize: customerTextFontSize, color: customerTextColor }}>
+                            {order.customerName || 'Unknown Customer'}
+                        </Typography>
+                    </Box>
+
+                    {/* Payment Status Badges */}
+                    <Box sx={{ display: 'flex', flexDirection: "column", gap: 1, alignItems: "flex-start", mb: 1.5 }}>
+                        <Box sx={{ position: 'relative' }}>
+                            <Box
+                                onClick={handlePaymentMenuOpen}
+                                title={`Click to toggle payment status`}
+                                sx={{
+                                    width: '104px',
+                                    px: 1.5,
+                                    pr: 3, // Extra padding to accommodate the icon
+                                    height: orderStatusBoxHeight,
+                                    borderRadius: orderStatusBoxRadius,
+                                    bgcolor: paymentStatusBgColor,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    '&:hover': { opacity: 0.8 }
+                                }}
+                            >
+                                <Typography sx={{ fontFamily: orderStatusTextFontFamily, fontWeight: orderStatusTextFontWeight, fontSize: orderStatusTextFontSize, color: paymentStatusTextColor, lineHeight: '1' }}>
+                                    {paymentStatusText}
+                                </Typography>
+                                <FaChevronDown style={{ color: paymentStatusTextColor, fontSize: '12px', marginLeft: '4px' }} />
+                            </Box>
+                            <Menu
+                                anchorEl={paymentMenuAnchor}
+                                open={Boolean(paymentMenuAnchor)}
+                                onClose={handlePaymentMenuClose}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                                PaperProps={{
+                                    sx: {
+                                        backgroundColor: 'transparent',
+                                        boxShadow: 'none',
+                                        mt: 0.5,
+                                    }
+                                }}
+                            >
+                                <MenuItem
+                                    onClick={() => handlePaymentMenuSelect(paymentStatus === 'paid' ? 'unpaid' : 'paid')}
+                                    sx={{
+                                        backgroundColor: paymentStatusBgColor,
+                                        color: paymentStatusTextColor,
+                                        fontFamily: orderStatusTextFontFamily,
+                                        fontWeight: orderStatusTextFontWeight,
+                                        fontSize: orderStatusTextFontSize,
+                                        px: 1.5,
+                                        py: 0.75,
+                                        borderRadius: orderStatusBoxRadius,
+                                        minHeight: orderStatusBoxHeight,
+                                        '&:hover': { opacity: 0.8 }
+                                    }}
+                                >
+                                    {paymentStatus === 'paid' ? 'unpaid' : 'paid'}
+                                </MenuItem>
+                            </Menu>
+                        </Box>
+                    </Box>
+
+                    {/* Shipping Status Badges */}
+                    <Box sx={{ display: 'flex', flexDirection: "column", gap: 1, alignItems: "flex-start" }}>
+                        <Box sx={{ position: 'relative' }}>
+                            <Box
+                                onClick={handleShippingMenuOpen}
+                                title={`Click to toggle shipping status`}
+                                sx={{
+                                    width: '104px',
+                                    px: 1.5,
+                                    pr: 3, // Extra padding to accommodate the icon
+                                    height: orderStatusBoxHeight,
+                                    borderRadius: orderStatusBoxRadius,
+                                    bgcolor: shippingStatusBgColor,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    '&:hover': { opacity: 0.8 }
+                                }}
+                            >
+                                <Typography sx={{ fontFamily: orderStatusTextFontFamily, fontWeight: orderStatusTextFontWeight, fontSize: orderStatusTextFontSize, color: shippingStatusTextColor, lineHeight: '1' }}>
+                                    {shippingStatusText}
+                                </Typography>
+                                <FaChevronDown style={{ color: shippingStatusTextColor, fontSize: '12px', marginLeft: '4px' }} />
+                            </Box>
+                            <Menu
+                                anchorEl={shippingMenuAnchor}
+                                open={Boolean(shippingMenuAnchor)}
+                                onClose={handleShippingMenuClose}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                                PaperProps={{
+                                    sx: {
+                                        backgroundColor: 'transparent',
+                                        boxShadow: 'none',
+                                        mt: 0.5,
+                                    }
+                                }}
+                            >
+                                <MenuItem
+                                    onClick={() => handleShippingMenuSelect(shippingStatus === 'shipped' ? 'unshipped' : 'shipped')}
+                                    sx={{
+                                        backgroundColor: shippingStatusBgColor,
+                                        color: shippingStatusTextColor,
+                                        fontFamily: orderStatusTextFontFamily,
+                                        fontWeight: orderStatusTextFontWeight,
+                                        fontSize: orderStatusTextFontSize,
+                                        px: 1.5,
+                                        py: 0.75,
+                                        borderRadius: orderStatusBoxRadius,
+                                        minHeight: orderStatusBoxHeight,
+                                        '&:hover': { opacity: 0.8 }
+                                    }}
+                                >
+                                    {shippingStatus === 'shipped' ? 'unshipped' : 'shipped'}
+                                </MenuItem>
+                            </Menu>
+                        </Box>
+                    </Box>
+                </Box>
+            </Collapse>
         </Paper>
     );
 };

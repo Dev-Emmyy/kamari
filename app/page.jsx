@@ -1,6 +1,6 @@
-// app/page.jsx
-'use client';
-import { Box, Typography, Button, useMediaQuery, useTheme, } from "@mui/material";
+"use client";
+
+import { Box, Typography, Button, useMediaQuery, useTheme } from "@mui/material";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { TfiHandPointLeft } from "react-icons/tfi";
@@ -8,6 +8,7 @@ import SmartphoneIcon from '@mui/icons-material/Smartphone';
 
 // Main Action Button styles (Sign In/Sign Up)
 const mainButtonStyles = {
+    maxWidth: "301px",
     mt: 1,
     mb: 3,
     borderStyle: 'none',
@@ -16,7 +17,7 @@ const mainButtonStyles = {
     textTransform: "none",
     borderRadius: "13px",
     boxShadow: "0px 4px 8px 0px rgba(0, 0, 0, 0.15)",
-    fontFamily: "'Instrument Sans', sans-serif",
+    fontFamily: "Manrope",
     fontWeight: 400,
     fontSize: "14px",
     width: "100%",
@@ -25,8 +26,8 @@ const mainButtonStyles = {
     height: "48px",
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 1,
+    justifyContent: 'flex-start', // Align items to the start
+    gap: 1, // Space between logo and text
     '&:hover': {
         bgcolor: "rgba(50, 50, 50, 1)",
     },
@@ -36,7 +37,6 @@ const mainButtonStyles = {
         boxShadow: 'none',
     }
 };
-
 
 const DesktopWarning = () => (
     <Box sx={{
@@ -63,14 +63,13 @@ const DesktopWarning = () => (
     </Box>
 );
 
-
 export default function Home() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const router = useRouter();
 
     if (!isMobile) {
-        return <DesktopWarning />; // Use the component defined above
+        return <DesktopWarning />;
     }
 
     return (
@@ -93,7 +92,7 @@ export default function Home() {
                 width: '100%',
                 boxSizing: 'border-box',
             }}>
-                <Box sx={{pl: 2}}>
+                <Box sx={{ pl: 2 }}>
                     <Image
                         src="/logo.png"
                         alt="Kamari Logo"
@@ -133,10 +132,11 @@ export default function Home() {
                     width: '100%',
                 }}>
                     <Box sx={{ width: "60%" }}>
-                        <Typography variant="h1" sx={{ 
-                            fontFamily: "Manrope", 
-                            fontWeight: 700, 
+                        <Typography variant="h1" sx={{
+                            fontFamily: "Manrope",
+                            fontWeight: 700,
                             fontSize: "42px",
+                            color: "rgba(215,59,59,1)",
                             lineHeight: 1.1,
                             width: "270px",
                         }}>
@@ -162,43 +162,64 @@ export default function Home() {
 
                 {/* Upload Section */}
                 <Box sx={{
+                   display: 'flex',
+                   justifyContent: "space-between",
+                   alignItems: "center", // Ensure vertical centering of both text and image
+                   mb: 5,
+                   width: '100%',
+                }}>
+                <Box sx={{
+                   display: 'flex',
+                   alignItems: 'center', // Center the Typography vertically within its Box
+                   width: '180px', // Match the Typography width for consistency
+                }}>
+                <Typography sx={{
+                   fontFamily: "Manrope",
+                   fontWeight: 700,
+                   fontSize: "36px",
+                   color: "rgba(21, 21, 21, 1)",
+                   lineHeight: 1,
+                   width: "180px",
+                }}>
+                  Upload a Picture to Begin
+                </Typography>
+              </Box>
+              <Box sx={{
+                   width: "180px",
+                   height: '120px',
+                   display: 'flex',
+                   alignItems: 'center', // Center the Image vertically within its Box
+                }}>
+              <Image
+                src="/bag.png"
+                width={91}
+                height={118}
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+                alt="Shopping bag icon"
+                priority
+              />
+               </Box>
+              </Box>
+
+              <Box sx={{
                     display: 'flex',
-                    justifyContent: "space-between",
+                    justifyContent: "center",
                     alignItems: "center",
-                    mb: 4,
+                    mb: 2,
                     width: '100%',
                 }}>
-                    <Box sx={{ width: "55%" }}>
-                        <Typography sx={{ 
-                            fontFamily: "Manrope", 
-                            fontWeight: 700, 
-                            fontSize: "36px", 
-                            color: "rgba(215,59,59,1)",
-                            lineHeight: 1,
-                            width: "160px",
-                        }}>
-                            Upload a Picture to Begin
-                        </Typography>
-                    </Box>
-                    <Box sx={{ 
-                        width: "230px",
-                        position: 'relative',
-                        height: '120px',
-                        mt: -15
-                    }}>
-                        <Image
-                            src="/bag.png"
-                            width={230}
-                        height={120}
-                            style={{  width: '100%', height: 'auto', display: 'block' }}
-                            alt="Shopping bag icon"
-                            priority
-                        />
-                    </Box>
+                  <Image
+                    src="/Arrow_down_long.png"
+                    width={24}
+                    height={24}
+                    alt="Arrow_down_long"
+                    priority
+                   />
                 </Box>
 
+
                 {/* Upload Button */}
-                <Box sx={{ width: "100%", mb: 2 }}>
+                <Box sx={{ width: "100%", mb: 2, display: 'flex', justifyContent: 'center' }}>
                     <Button
                         variant="contained"
                         fullWidth
@@ -215,64 +236,76 @@ export default function Home() {
                             height={45}
                             priority
                         />
-                        <Typography sx={{
-                            fontFamily: "'Instrument Sans', sans-serif",
-                            fontWeight: 400,
-                            color: "rgba(255, 255, 255, 1)",
-                            fontSize: "14px",
-                            ml: 1
-                        }}>
-                            Upload & Let AI Work!
-                        </Typography>
-                        <TfiHandPointLeft style={{width: "14px", height: "14px"}}/>
+                        <Box sx={{ flexGrow: 0.6, display: 'flex', justifyContent: 'center' }}>
+                            <Typography sx={{
+                                fontFamily: "Manrope",
+                                fontWeight: 400,
+                                color: "rgba(255, 255, 255, 1)",
+                                fontSize: "16.7px",
+                            }}>
+                                Upload & Let AI Work!
+                            </Typography>
+                        </Box>
                     </Button>
                 </Box>
             </Box>
 
-            {/* Yellow Info Section */}
+            {/* light ash Info Section */}
             <Box sx={{
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
+                alignItems: "center",
                 width: '100%',
                 px: 4,
                 pt: 4,
                 pb: 6,
-                backgroundColor: "rgba(255, 205, 7, 1)",
+                backgroundColor: "rgba(66, 64, 61, 1)",
                 flexGrow: 1,
                 boxSizing: 'border-box',
             }}>
                 <Box>
-                    <Typography sx={{ 
-                        fontFamily: "Manrope", 
-                        fontWeight: 700, 
-                        fontSize: "20px", 
-                        color: "rgba(34, 34, 34, 1)", 
+                    <Typography sx={{
+                        fontFamily: "Manrope",
+                        fontWeight: 700,
+                        fontSize: "20px",
+                        color: "rgba(246, 246, 246, 1)",
                         mb: 1,
-                        maxWidth: '290px'
+                        maxWidth: '307px'
                     }}>
-                        Kamari generates product titles and descriptions for your products.
+                        Kamari auto-generates product titles and descriptions for your inventory. Saving you time you can spend selling!
                     </Typography>
                 </Box>
-
-                <Box sx={{ 
-                    width: '100%', 
-                    maxWidth: '350px', 
-                    mt: 4,
-                    alignSelf: 'center',
-                    position: 'relative',
-                    height: '150px'
-                }}>
-                    <Image
-                        src="/bottom.png"
-                        alt="How it works illustration"
-                        fill
-                        style={{ objectFit: 'contain' }}
-                        priority
-                    />
+                <Box sx={{ width: "100%", mb: 2, display: 'flex', justifyContent: 'center' }}>
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        sx={{
+                            ...mainButtonStyles,
+                            cursor: 'pointer'
+                        }}
+                        onClick={() => router.push('/login')}
+                    >
+                        <Image
+                            src="/logos.png"
+                            alt="Upload Icon"
+                            width={45}
+                            height={45}
+                            priority
+                        />
+                        <Box sx={{ flexGrow: 0.6, display: 'flex', justifyContent: 'center' }}>
+                            <Typography sx={{
+                                fontFamily: "Manrope",
+                                fontWeight: 400,
+                                color: "rgba(255, 255, 255, 1)",
+                                fontSize: "16px",
+                            }}>
+                                Get ahead
+                            </Typography>
+                        </Box>
+                    </Button>
                 </Box>
             </Box>
         </Box>
-    )
+    );
 }
